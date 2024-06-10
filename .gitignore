@@ -1,0 +1,10 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+data/
+figures/
+tables/
+scripts/Preprocessing/
+output.log
+run_rscript.sh

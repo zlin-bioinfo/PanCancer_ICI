@@ -4,10 +4,11 @@ unlist(lapply(pkgs, function(x) require(package = x,  character.only = TRUE, qui
 options(warn = -1)
 
 # loading
-meta_int <- read.csv('/bigdata/zlin/Melanoma_meta/tables/meta_int.csv') 
-pt_df <- read.csv('/bigdata/zlin/Melanoma_meta/tables/meta_patient.csv') 
-pt_df <- pt_df |> filter(dataset != 'NSCLC_Liu')
-pt_df$dataset[pt_df$dataset %in% c('BCC_Yost','SCC_Yost')] <- 'BCC/SCC_Yost'
+meta_int <- read.csv('/bigdata/zlin/PanCancer_ICI/tables/meta_int.csv') 
+pt_df <- read.csv('/bigdata/zlin/PanCancer_ICI/tables/meta_patient.csv') 
+pt_df <- pt_df |> 
+  filter(!dataset %in% c('NSCLC_Liu'), 
+         !patient %in% c('BCC/SCC_Yost_su009', 'BCC/SCC_Yost_su011', 'BCC/SCC_Yost_su012', 'BCC/SCC_Yost_su014'))
 # Immune
 immune_cell <- c('CD4_Naive','CD4_Tm_CREM-','CD4_Tm_AREG','CD4_Tm_TIMP1','CD4_Tm_CAPG','CD4_Tm_CREM', 'CD4_Tm_CCL5', 
                  'CD4_Tem_GZMK', 'CD4_Temra_CX3CR1', 'CD4_pre-Tfh_CXCR5','CD4_Tfh_CXCR5','CD4_TfhTh1_IFNG', 
@@ -24,7 +25,8 @@ immune_cell <- c('CD4_Naive','CD4_Tm_CREM-','CD4_Tm_AREG','CD4_Tm_TIMP1','CD4_Tm
                  'Mono_CD14', 'Mono_CD14CD16', 'Mono_CD16',
                  'Macro_IL1B', 'Macro_INHBA', 'Macro_SPP1', 'Macro_FN1', 'Macro_ISG15', 
                  'Macro_TNF', 'Macro_LYVE1', 'Macro_C1QC', 'Macro_TREM2')
-nonimmune <- c('EC_lymphatic','EC_vascular','EndMT','CAF_inflammatory', 'CAF_adipogenic', 'CAF_PN', 'CAF_AP', 'Myofibroblast')
+nonimmune <- c('Endo_lymphatic','Endo_artery','Endo_capillary','Endo_tip','Endo_vein',
+               'EndMT','CAF_inflammatory', 'CAF_adipogenic', 'CAF_PN', 'CAF_AP', 'Myofibroblast')
 # Heatmap
 cor_mat <- function(meta_int, pt_df, timepoint, filtering = F){
   freq_filt <- meta_int |> 
@@ -33,19 +35,20 @@ cor_mat <- function(meta_int, pt_df, timepoint, filtering = F){
     pivot_wider(values_from = count_r2, names_from = time_point, values_fill = 0)
   if (filtering == T){
     freq_filt <- freq_filt |> 
-      filter(abs(Pre-Post) >= 3)
-      # filter(abs(Pre-Post) >= 3, (Pre >= 3 | Post >= 3))
+      filter(abs(Pre-On) >= 3)
+      # filter(abs(Pre-On) >= 3, (Pre >= 3 | On >= 3))
   }
   freq_filt$pt_r2 <- paste0(freq_filt$patient, '_', freq_filt$celltype_r2)
   freq_wide <- meta_int |> 
     select(patient, time_point, celltype_r2, interval, cancertype, response, res_metric, treatment, prior, modality, freq_r2_comp, dataset, component) |> 
     distinct(patient, time_point, celltype_r2, .keep_all = T) |> 
     pivot_wider(values_from = freq_r2_comp, names_from = time_point, values_fill = 0) |> 
-    mutate(change = log2((Post + 0.01)/(Pre + 0.01)), diff = (Post - Pre))
+    mutate(change = log2((On + 0.01)/(Pre + 0.01)), diff = (On - Pre))
   freq_wide$pt_r2 <- paste0(freq_wide$patient, '_', freq_wide$celltype_r2)
   freq_wide <- filter(freq_wide, pt_r2 %in% freq_filt$pt_r2)
   mat_freq <- freq_wide |> 
-    filter(dataset != 'NSCLC_Liu', 
+    filter(!dataset %in% c('NSCLC_Liu'), 
+           !patient %in% c('BCC/SCC_Yost_su009', 'BCC/SCC_Yost_su011', 'BCC/SCC_Yost_su012', 'BCC/SCC_Yost_su014'),
            celltype_r2 %in% immune_cell) |> 
     select(patient, timepoint, celltype_r2) |> 
     pivot_wider(values_from = timepoint, names_from = patient, values_fill = 0) |> 
@@ -91,7 +94,7 @@ ht_cor_pt <- function(cor_matrix, n.cluster = 3, clust_method = 'complete'){
     #   cluster = list(title = "Cluster")),
     # show_annotation_name = T
   )
-  Heatmap(cor_matrix, col = rev(pal(10)), name = "Correlation\n(Pearson's ρ)",
+  Heatmap(cor_matrix, col = rev(pal(10)), name = "Pearson's R",
           show_row_names = F, show_column_names = F, 
           show_row_dend = F, show_column_dend = T,
           clustering_method_rows = clust_method,
@@ -106,14 +109,15 @@ ht_cor_pt <- function(cor_matrix, n.cluster = 3, clust_method = 'complete'){
           top_annotation = col_ha)
 }
 
-cor_matrix <- cor_mat(meta_int, pt_df, timepoint = 'diff', filtering = F) # c('Pre', 'diff', 'Post')
-n <- 3
-c_method <- 'ward.D2' # 'complete' (default) 'ward.D2'
+cor_matrix <- cor_mat(meta_int, timepoint = 'diff', filtering = F) # c('Pre', 'diff', 'On')
+n <- 4
+c_method <- 'complete' # 'complete' (default) 'ward.D2'
 ht_cor_pt(cor_matrix, n.cluster=n, clust_method = c_method)
 pt_df$cluster_diff <- cutree(hclust(dist(cor_matrix), method = c_method), k=n)
 pt_df$cluster_diff <- factor(pt_df$cluster_diff)
 pt_df |> janitor::tabyl(response, cluster_diff)
-test_result <- pt_df |> janitor::tabyl(response, cluster_diff) |> column_to_rownames(var = 'response') |> select(-2) |> chisq.test()
+# test_result <- pt_df |> janitor::tabyl(response, cluster_diff) |> column_to_rownames(var = 'response') |> select(-c(3,4)) |> chisq.test()
+# test_result <- pt_df |> janitor::tabyl(response, cluster_diff) |> column_to_rownames(var = 'response') |> chisq.test()
 pt_df$response <- factor(pt_df$response, levels = c('RE','NR'))
 pt_df |> 
   ggplot() +
@@ -124,12 +128,12 @@ pt_df |>
         axis.text.y = element_blank(), 
         axis.ticks.y = element_blank(),
         axis.ticks.x = element_blank()) +
-  annotate("text", x = 1, y = 1.2, label = paste("Chi-squared Test (1 vs 3)\np-value:", round(test_result$p.value, 4)), # "Chi-square Test\np-value:"
-           hjust = 1.05, vjust = 1.5, size = 4, colour = "black") +
+  # annotate("text", x = 1, y = 1.2, label = paste("Chi-squared Test (1 vs 3)\np-value:", round(test_result$p.value, 4)), # "Chi-square Test\np-value:"
+  #          hjust = 1.05, vjust = 1.5, size = 4, colour = "black") +
   geom_mosaic_text(aes(x = product(response, cluster_diff), label = after_stat(.wt)), size = 3.5) 
-ggsave('/bigdata/zlin/Melanoma_meta/figures/Cluster_response/mosaic_change.pdf', height = 5, width = 5)
+ggsave('/bigdata/zlin/PanCancer_ICI/figures/Cluster_response/mosaic_change.pdf', height = 5, width = 5)
 
-pdf('/bigdata/zlin/Melanoma_meta/figures/Cluster_response/ht_change.pdf', height = 10, width = 20)
+pdf('/bigdata/zlin/PanCancer_ICI/figures/Cluster_response/ht_change.pdf', height = 10, width = 20)
 ht_cor_pt(cor_matrix, n.cluster=n, clust_method = c_method)
 dev.off()
 
@@ -138,12 +142,17 @@ freq_wide <- meta_int |>
   select(patient, time_point, celltype_r2, interval, cancertype, response, res_metric, treatment, prior, modality, freq_r2_comp, dataset, component) |> 
   distinct(patient, time_point, celltype_r2, .keep_all = T) |> 
   pivot_wider(values_from = freq_r2_comp, names_from = time_point, values_fill = 0) |> 
-  mutate(change = log2((Post + 0.01)/(Pre + 0.01)), diff = (Post - Pre))
+  mutate(change = log2((On + 0.01)/(Pre + 0.01)), diff = (On - Pre))
 freq_wide$cluster <- pt_df$cluster_diff[match(freq_wide$patient, pt_df$patient)]
-freq_wide <- filter(freq_wide, !cluster  %in% c(2, NA))
+freq_wide <- filter(freq_wide, !cluster  %in% c(3, 4))
 freq_wide$group <- ifelse(freq_wide$cluster == 1, 'better', 'worse')
+freq_wide <- freq_wide |> 
+  group_by(group, celltype_r2) |> 
+  mutate(n_sample = n()) |> 
+  filter(n_sample > 2) |> 
+  ungroup()
 list_res <- lapply(unique(freq_wide$celltype_r2), function(subtype){
-  # subtype <- 'Macro_IL1B'
+  # subtype <- 'B_MT2A'
   print(subtype)
   pvalue <- freq_wide |> 
     filter(celltype_r2 == subtype) |>
@@ -158,7 +167,7 @@ list_res <- lapply(unique(freq_wide$celltype_r2), function(subtype){
                                  pValue = pvalue)
   return(combined_results)
 })
-pdf('/bigdata/zlin/Melanoma_meta/figures/Cluster_response/vol_subtypes.pdf', height = 5, width = 6)
+pdf('/bigdata/zlin/PanCancer_ICI/figures/Cluster_response/vol_subtypes.pdf', height = 5, width = 6)
 do.call(rbind, list_res) |> 
   # mutate(padj = p.adjust(pValue, method = 'fdr', n = unique(freq_wide$celltype_r2)),
   #        significant = ifelse(pValue < 0.05 & effsize > 0.5, 'C1',
@@ -166,16 +175,16 @@ do.call(rbind, list_res) |>
   #        celltype_label = case_when(abs(effsize) > 0.5 ~ Celltypes,
   #                                   abs(effsize) <= 0.5 ~ '')) |> 
   mutate(
-         significant = ifelse(pValue < 0.05 & effsize > 0.5, 'C1',
-                              ifelse(pValue < 0.05 & effsize < -0.5, 'C3', 'Not')),
-         celltype_label = case_when(abs(effsize) > 0.5 ~ Celltypes,
-                                    abs(effsize) <= 0.5 ~ '')) |>
-  mutate(significant = factor(significant, levels = c('C3','Not','C1'))) |> 
+         significant = ifelse(pValue < 0.05 & effsize > 0.35, 'C1',
+                              ifelse(pValue < 0.05 & effsize < -0.35, 'C2', 'Not')),
+         celltype_label = case_when(abs(effsize) > 0.35 ~ Celltypes,
+                                    abs(effsize) <= 0.35 ~ '')) |>
+  mutate(significant = factor(significant, levels = c('C2','Not','C1'))) |> 
   arrange(desc(effsize)) |> 
   ggplot(aes(x = effsize, y = -log10(pValue))) +
   geom_point(aes(size = abs(effsize), color = significant)) + 
   scale_size_continuous(range = c(0.5, 5), breaks = c(0.2, 0.5, 0.8, 1.2), labels = c("0.2", "0.5", "0.8", "1.2"), name = 'Effect Size') +
-  geom_vline(xintercept = c(-0.5, 0.5), linetype = "dashed", size = 0.2) +
+  geom_vline(xintercept = c(-0.4, 0.4), linetype = "dashed", size = 0.2) +
   geom_hline(yintercept = -log10(0.05), linetype = "dashed", size = 0.2) +
   geom_text_repel(aes(label = celltype_label), box.padding = 0.6, max.overlaps = Inf, size = 2.6) +
   scale_color_manual(values = c('#2CA02CFF','gray','#1F77B4FF'), guide = FALSE) +
@@ -201,30 +210,30 @@ grid.segments(
   y1 = unit(y_text+0.03, "npc"),
   arrow = arrow(type = "open", length = unit(0.05, "inches"))
 )
-grid.text("C3\n(NR-enriched)", x = unit(x1, "npc"), y = unit(y_text, "npc"), gp = gpar(fontsize = 8))
+grid.text("C2\n(NR-enriched)", x = unit(x1, "npc"), y = unit(y_text, "npc"), gp = gpar(fontsize = 8))
 grid.text("C1\n(RE-enriched)", x = unit(x2, "npc"), y = unit(y_text, "npc"), gp = gpar(fontsize = 8))
 dev.off()
 
-subtypes <- c('Plasma_cell','CD4_Naive')
-freq_wide |> 
-  filter(celltype_r2 %in% subtypes) |>
-  distinct(patient, .keep_all = T) |> 
-  mutate(cluster = ifelse(cluster == 1, 'C1 ', 'C3'), 
-         celltype_r2 = factor(celltype_r2, levels = subtypes)) |> 
-  ggplot(aes(x = cluster, y = diff)) +
-  geom_violin(aes(fill = cluster), alpha = 0.8) +
-  geom_boxplot(width = 0.3, alpha = 0.2) +
-  scale_fill_manual(values = c('#2CA02CFF', '#1F77B4FF'), guide = FALSE) +
-  geom_point(size = 0.5) +
-  facet_wrap(.~ celltype_r2, scales = 'free_y') +
-  xlab("") + ylab("∆ Relative Frequency") + 
-  theme_classic() + 
-  theme(axis.text.x = element_text(size = 12, colour = 'black'),
-        axis.title = element_text(size = 10, colour = 'black'),
-        strip.text = element_text(size = 12, margin = margin(2,1,2,1)),
-        panel.grid.major = element_line(color = "gray", size = 0.1)) +
-  stat_compare_means(method = 't.test')
-ggsave('/bigdata/zlin/Melanoma_meta/figures/Cluster_response/box_subtypes.pdf', width = 5, height = 3)
+# subtypes <- c('Plasma_cell','CD4_Naive')
+# freq_wide |> 
+#   filter(celltype_r2 %in% subtypes) |>
+#   distinct(patient, .keep_all = T) |> 
+#   mutate(cluster = ifelse(cluster == 1, 'C1 ', 'C2'), 
+#          celltype_r2 = factor(celltype_r2, levels = subtypes)) |> 
+#   ggplot(aes(x = cluster, y = diff)) +
+#   geom_violin(aes(fill = cluster), alpha = 0.8) +
+#   geom_boxplot(width = 0.3, alpha = 0.2) +
+#   scale_fill_manual(values = c('#2CA02CFF', '#1F77B4FF'), guide = FALSE) +
+#   geom_point(size = 0.5) +
+#   facet_wrap(.~ celltype_r2, scales = 'free_y') +
+#   xlab("") + ylab("∆ Relative Frequency") + 
+#   theme_classic() + 
+#   theme(axis.text.x = element_text(size = 12, colour = 'black'),
+#         axis.title = element_text(size = 10, colour = 'black'),
+#         strip.text = element_text(size = 12, margin = margin(2,1,2,1)),
+#         panel.grid.major = element_line(color = "gray", size = 0.1)) +
+#   stat_compare_means(method = 't.test')
+# ggsave('/bigdata/zlin/PanCancer_ICI/figures/Cluster_response/box_subtypes.pdf', width = 5, height = 3)
   
 order_column <- do.call(rbind, list_res) |> 
   mutate(padj = p.adjust(pValue, method = 'fdr', n = length(immune_cell)),
@@ -242,7 +251,7 @@ freq_wide <- meta_int |>
   select(patient, time_point, celltype_r2, interval, cancertype, response, res_metric, treatment, prior, modality, freq_r2_comp, dataset, component) |>
   distinct(patient, time_point, celltype_r2, .keep_all = T) |>
   pivot_wider(values_from = freq_r2_comp, names_from = time_point, values_fill = 0) |>
-  mutate(change = log2((Post + 0.01)/(Pre + 0.01)), diff = (Post - Pre))
+  mutate(change = log2((On + 0.01)/(Pre + 0.01)), diff = (On - Pre))
 # freq_wide$cluster <- pt_df$cluster_diff[match(freq_wide$patient, pt_df$patient)]
 # freq_wide <- filter(freq_wide, !cluster  %in% c(1, NA))
 # freq_wide$cluster <- ifelse(freq_wide$cluster == 2, 1, 0)
@@ -306,7 +315,7 @@ pt_df |>
   annotate("text", x = 1, y = 1.2, label = paste("Chi-squared Test\np-value:", round(test_result$p.value, 4)), 
            hjust = 1.05, vjust = 1.5, size = 4, colour = "black") +
   geom_mosaic_text(aes(x = product(modality, cluster_diff), label = after_stat(.wt)),size = 3.5)
-ggsave('/bigdata/zlin/Melanoma_meta/figures/Cluster_response/mosaic_modality.pdf', height = 5, width = 5)
+ggsave('/bigdata/zlin/PanCancer_ICI/figures/Cluster_response/mosaic_modality.pdf', height = 5, width = 5)
 
 test_result <- pt_df |> janitor::tabyl(treatment, cluster_diff)  |> chisq.test()
 pt_df |> 
@@ -322,7 +331,7 @@ pt_df |>
   annotate("text", x = 1, y = 1.25, label = paste("Chi-squared Test\np-value:", round(test_result$p.value, 4)), 
            hjust = 1.05, vjust = 1.5, size = 4, colour = "black") +
   geom_mosaic_text(aes(x = product(treatment, cluster_diff), label = after_stat(.wt)),size = 3.5)
-ggsave('/bigdata/zlin/Melanoma_meta/figures/Cluster_response/mosaic_tx.pdf', height = 5, width = 5)
+ggsave('/bigdata/zlin/PanCancer_ICI/figures/Cluster_response/mosaic_tx.pdf', height = 5, width = 5)
 
 pt_df$primarysite <- ifelse(pt_df$cancertype %in% c('SKCM', 'BCC', 'SCC', 'CRC', 'PCa'), 'Skin&Others',
                             ifelse(pt_df$cancertype %in% c('TNBC', 'HER2+BC', 'ER+BC'), 'Breast', 'Head and Neck'))
@@ -340,7 +349,7 @@ pt_df |>
   annotate("text", x = 1, y = 1.25, label = paste("Chi-squared Test\np-value:", round(test_result$p.value, 4)), 
            hjust = 1.05, vjust = 1.5, size = 4, colour = "black") +
   geom_mosaic_text(aes(x = product(primarysite, cluster_diff), label = after_stat(.wt)),size = 3.5)
-ggsave('/bigdata/zlin/Melanoma_meta/figures/Cluster_response/mosaic_primsite.pdf', height = 5, width = 5)
+ggsave('/bigdata/zlin/PanCancer_ICI/figures/Cluster_response/mosaic_primsite.pdf', height = 5, width = 5)
 
 
 
@@ -352,14 +361,14 @@ ggsave('/bigdata/zlin/Melanoma_meta/figures/Cluster_response/mosaic_primsite.pdf
 #   distinct(patient, time_point, celltype_r2, .keep_all = T) |> 
 #   pivot_wider(values_from = count_r2, names_from = time_point, values_fill = 0)
 # if (filtering == T){
-#   freq_filt <- freq_filt |> filter(abs(Pre-Post) >= 3, (Pre >= 3 | Post >= 3))
+#   freq_filt <- freq_filt |> filter(abs(Pre-On) >= 3, (Pre >= 3 | On >= 3))
 # }
 # freq_filt$pt_r2 <- paste0(freq_filt$patient, '_', freq_filt$celltype_r2)
 freq_wide <- meta_int |> 
   select(patient, time_point, celltype_r2, interval, cancertype, response, res_metric, treatment, prior, modality, freq_r2_comp, dataset, component, int_cat) |> 
   distinct(patient, time_point, celltype_r2, .keep_all = T) |> 
   pivot_wider(values_from = freq_r2_comp, names_from = time_point, values_fill = 0) |> 
-  mutate(change = log2((Post + 0.01)/(Pre + 0.01)), diff = (Post - Pre))
+  mutate(change = log2((On + 0.01)/(Pre + 0.01)), diff = (On - Pre))
 freq_wide$pt_r2 <- paste0(freq_wide$patient, '_', freq_wide$celltype_r2)
 # freq_wide <- filter(freq_wide, pt_r2 %in% freq_filt$pt_r2)
 freq_wide$cluster <- pt_df$cluster_diff[match(freq_wide$patient, pt_df$patient)]
@@ -374,9 +383,9 @@ df_change <- freq_wide |>
 re_celltype <- rownames(df_change)[apply(df_change, 1, function(row) which.max(row) == 1)]
 re_up <- intersect(rownames(df_change)[df_change$`1` > 0], re_celltype)
 re_down <- intersect(rownames(df_change)[df_change$`1` < 0], re_celltype)
-nr_celltype <- rownames(df_change)[apply(df_change, 1, function(row) which.max(row) == 3)]
-nr_up <- intersect(rownames(df_change)[df_change$`3` > 0], nr_celltype)
-nr_down <- intersect(rownames(df_change)[df_change$`3` < 0], nr_celltype)
+nr_celltype <- rownames(df_change)[apply(df_change, 1, function(row) which.max(row) == 2)]
+nr_up <- intersect(rownames(df_change)[df_change$`2` > 0], nr_celltype)
+nr_down <- intersect(rownames(df_change)[df_change$`2` < 0], nr_celltype)
 col_row <- ifelse(rownames(df_change) %in% c(re_up, nr_up), '#A2001F', 
                   ifelse(rownames(df_change) %in% c(re_down, nr_down), '#005D89', 'black'))
 ht_change <- Heatmap(t(scale(t(df_change))), 
@@ -396,7 +405,7 @@ ht_change <- Heatmap(t(scale(t(df_change))),
                        title_position = "topcenter"),
                      width = ncol(df_change)*unit(5, "mm"), 
                      height = nrow(df_change)*unit(3.5, "mm"))
-pdf('/bigdata/zlin/Melanoma_meta/figures/Cluster_response/ht_celltype_change.pdf', height = 11, width = 3)
+pdf('/bigdata/zlin/PanCancer_ICI/figures/Cluster_response/ht_celltype_change.pdf', height = 11, width = 3)
 draw(ht_change, heatmap_legend_side = 'bottom')
 dev.off()
 
@@ -437,8 +446,8 @@ ht_change <- Heatmap(t(scale(t(df_change))),
 
 celltype_re <- rownames(df_change)[apply(df_change, 1, function(row) which.max(row) == 2)]
 celltype_nr <- rownames(df_change)[apply(df_change, 1, function(row) which.max(row) == 3)]
-write.csv(celltype_re, '/bigdata/zlin/Melanoma_meta/tables/celltype_re.csv', row.names = F)
-write.csv(celltype_nr, '/bigdata/zlin/Melanoma_meta/tables/celltype_nr.csv', row.names = F)
+write.csv(celltype_re, '/bigdata/zlin/PanCancer_ICI/tables/celltype_re.csv', row.names = F)
+write.csv(celltype_nr, '/bigdata/zlin/PanCancer_ICI/tables/celltype_nr.csv', row.names = F)
 # list_res <- lapply(celltype_re, function(subtype){
 #   df <- freq_wide |> 
 #     filter(celltype_r2 == subtype) |> 
@@ -493,7 +502,7 @@ write.csv(celltype_nr, '/bigdata/zlin/Melanoma_meta/tables/celltype_nr.csv', row
 #                   show_heatmap_legend = F,
 #                   width = ncol(df_change)*unit(4, "mm"), 
 #                   height = nrow(df_change)*unit(4, "mm"))
-# pdf('/bigdata/zlin/Melanoma_meta/figures/Cluster_response/ht_pre.pdf', height = 12, width = 3)
+# pdf('/bigdata/zlin/PanCancer_ICI/figures/Cluster_response/ht_pre.pdf', height = 12, width = 3)
 # ht_pre
 # dev.off()
 
@@ -520,7 +529,7 @@ freq_wide |>
   theme_classic2() + 
   theme(axis.text.x = element_text(size = 12, colour = 'black'),
                            legend.position = 'none')
-ggsave('/bigdata/zlin/Melanoma_meta/figures/Cluster_response/enrich_pre_change_C1.pdf', height = 3.5, width = 6)
+ggsave('/bigdata/zlin/PanCancer_ICI/figures/Cluster_response/enrich_pre_change_C1.pdf', height = 3.5, width = 6)
 
 celltype <- rownames(df_change)[apply(df_change, 1, function(row) which.max(row) == 3)]
 freq_wide |> 
@@ -545,9 +554,9 @@ freq_wide |>
   theme_classic2() + 
   theme(axis.text.x = element_text(size = 12, colour = 'black'),
         legend.position = 'none')
-ggsave('/bigdata/zlin/Melanoma_meta/figures/Cluster_response/enrich_pre_change_C3.pdf', height = 3.5, width = 6)
+ggsave('/bigdata/zlin/PanCancer_ICI/figures/Cluster_response/enrich_pre_change_C3.pdf', height = 3.5, width = 6)
 
-cor_matrix <- cor_mat(meta_int, pt_df, timepoint = 'Pre', filtering = F) # c('Pre', 'diff', 'Post')
+cor_matrix <- cor_mat(meta_int, pt_df, timepoint = 'Pre', filtering = F) # c('Pre', 'diff', 'On')
 n <- 3
 c_method <- 'ward.D2' # 'complete' (default) 'ward.D2'
 ht_cor_pt(cor_matrix, n.cluster=n, clust_method = c_method)
@@ -568,24 +577,24 @@ pt_df |>
   # annotate("text", x = 1, y = 1.2, label = paste("Chi-squared Test\np-value:", round(test_result$p.value, 4)), # "Chi-square Test\np-value:"
   #          hjust = 1.05, vjust = 1.5, size = 4, colour = "black") +
   geom_mosaic_text(aes(x = product(response, cluster_pre), label = after_stat(.wt)), size = 3.5) 
-ggsave('/bigdata/zlin/Melanoma_meta/figures/Cluster_response/mosaic_pre.pdf', height = 5, width = 5)
+ggsave('/bigdata/zlin/PanCancer_ICI/figures/Cluster_response/mosaic_pre.pdf', height = 5, width = 5)
 
-pdf('/bigdata/zlin/Melanoma_meta/figures/Cluster_response/ht_pre.pdf', height = 10, width = 20)
+pdf('/bigdata/zlin/PanCancer_ICI/figures/Cluster_response/ht_pre.pdf', height = 10, width = 20)
 ht_cor_pt(cor_matrix, n.cluster=n, clust_method = c_method)
 dev.off()
 
-cor_matrix <- cor_mat(meta_int, pt_df, timepoint = 'Post', filtering = F) # c('Pre', 'diff', 'Post')
+cor_matrix <- cor_mat(meta_int, pt_df, timepoint = 'On', filtering = F) # c('Pre', 'diff', 'On')
 n <- 3
 c_method <- 'ward.D2' # 'complete' (default) 'ward.D2'
 ht_cor_pt(cor_matrix, n.cluster=n, clust_method = c_method)
-pt_df$cluster_post <- cutree(hclust(dist(cor_matrix), method = c_method), k=n)
-pt_df$cluster_post <- factor(pt_df$cluster_post)
-pt_df |> janitor::tabyl(response, cluster_post)
+pt_df$cluster_On <- cutree(hclust(dist(cor_matrix), method = c_method), k=n)
+pt_df$cluster_On <- factor(pt_df$cluster_On)
+pt_df |> janitor::tabyl(response, cluster_On)
 # test_result <- pt_df |> janitor::tabyl(response, cluster_diff)  |> chisq.test()
 pt_df$response <- factor(pt_df$response, levels = c('RE','NR'))
 pt_df |> 
   ggplot() +
-  geom_mosaic(aes(x = product(response, cluster_post), fill = response)) +
+  geom_mosaic(aes(x = product(response, cluster_On), fill = response)) +
   labs(x = "", y = "") +
   scale_fill_brewer("Response", palette = "Set1") + theme_mosaic() +
   theme(axis.text.x = element_text(size = 14, colour = 'black'),
@@ -594,10 +603,10 @@ pt_df |>
         axis.ticks.x = element_blank()) +
   # annotate("text", x = 1, y = 1.2, label = paste("Chi-squared Test\np-value:", round(test_result$p.value, 4)), # "Chi-square Test\np-value:"
   #          hjust = 1.05, vjust = 1.5, size = 4, colour = "black") +
-  geom_mosaic_text(aes(x = product(response, cluster_post), label = after_stat(.wt)), size = 3.5) 
-ggsave('/bigdata/zlin/Melanoma_meta/figures/Cluster_response/mosaic_post.pdf', height = 5, width = 5)
+  geom_mosaic_text(aes(x = product(response, cluster_On), label = after_stat(.wt)), size = 3.5) 
+ggsave('/bigdata/zlin/PanCancer_ICI/figures/Cluster_response/mosaic_On.pdf', height = 5, width = 5)
 
-pdf('/bigdata/zlin/Melanoma_meta/figures/Cluster_response/ht_post.pdf', height = 10, width = 20)
+pdf('/bigdata/zlin/PanCancer_ICI/figures/Cluster_response/ht_On.pdf', height = 10, width = 20)
 ht_cor_pt(cor_matrix, n.cluster=n, clust_method = c_method)
 dev.off()
 
@@ -610,16 +619,16 @@ pt_df$modality <- factor(pt_df$modality, levels = c('Mono', 'Dual'))
 pt_df$int_cat <- ifelse(pt_df$interval < 21, '< 21d', '>= 21d')
 pt_df|> 
   mutate(row_order = rev(row_number())) |>
-  ggplot(aes(y = row_order, axis1 = cluster_pre, axis2 = cluster_diff, axis3 = cluster_post)) +
+  ggplot(aes(y = row_order, axis1 = cluster_pre, axis2 = cluster_diff, axis3 = cluster_On)) +
   geom_alluvium(aes(fill = response), width = 1/12) +
   geom_stratum(width = 1/12, alpha = .25) +
   geom_label(aes(label = after_stat(stratum)), stat = 'stratum', alpha = 0.3) +
-  scale_x_discrete(limits = c("Pre-Tx", "Change", "Post_Tx"), expand = c(.05, .05)) +
+  scale_x_discrete(limits = c("Pre-Tx", "Change", "On_Tx"), expand = c(.05, .05)) +
   scale_fill_brewer(type = 'qual', palette = 'Set1') + 
   theme_minimal() + ggtitle("") + ylab("") + xlab("") + labs(fill = 'Response') +
   theme(axis.text.y = element_blank(),
         axis.text.x = element_text(size = 12, colour = "black"))
-ggsave('/bigdata/zlin/Melanoma_meta/figures/Cluster_response/alluvium_pre_change_post.pdf', width = 6, height = 4)
+ggsave('/bigdata/zlin/PanCancer_ICI/figures/Cluster_response/alluvium_pre_change_On.pdf', width = 6, height = 4)
 
 pt_df$response <- factor(pt_df$response, levels = c('RE','NR')) 
 pt_df$dataset <- factor(pt_df$dataset, levels = c('SKCM_Becker', 'BRCA_Bassez1', 'BRCA_Bassez2', 'TNBC_Shiao', 'TNBC_Zhang', 'BCC/SCC_Yost', 'HNSC_Franken', 'HNSC_IMCISION', 'HNSC_Luoma', 'CRC_Li', 'PCa_Hawley'))
@@ -628,16 +637,16 @@ pt_df$modality <- factor(pt_df$modality, levels = c('Mono', 'Dual'))
 pt_df$int_cat <- ifelse(pt_df$interval < 21, '< 21d', '>= 21d')
 pt_df |> 
   mutate(row_order = rev(row_number())) |>
-  ggplot(aes(y = row_order, axis1 = dataset, axis2 = cancertype, axis3 = modality, axis4 = cluster_pre, axis5 = int_cat, axis6 = cluster_diff, axis7 = cluster_post)) +
+  ggplot(aes(y = row_order, axis1 = dataset, axis2 = cancertype, axis3 = modality, axis4 = cluster_pre, axis5 = int_cat, axis6 = cluster_diff, axis7 = cluster_On)) +
   geom_alluvium(aes(fill = response), width = 1/12) +
   geom_stratum(width = 1/12, alpha = .25) +
   geom_label(aes(label = after_stat(stratum)), stat = 'stratum', alpha = 0.3) +
-  scale_x_discrete(limits = c("Cohort", "Cancer Type", "Modality", "Cluster_pre", "Interval","Cluster_Change", "Cluster_post"), expand = c(.05, .05)) +
+  scale_x_discrete(limits = c("Cohort", "Cancer Type", "Modality", "Cluster_pre", "Interval","Cluster_Change", "Cluster_On"), expand = c(.05, .05)) +
   scale_fill_brewer(type = 'qual', palette = 'Set1') + 
   theme_minimal() + ggtitle("") + ylab("") + xlab("") + labs(fill = 'Response') +
   theme(axis.text.y = element_blank(),
         axis.text.x = element_text(size = 12, colour = "black")) 
-ggsave('/bigdata/zlin/Melanoma_meta/figures/Cluster_response/alluvium_comprehensive.pdf', width = 16, height = 8)
+ggsave('/bigdata/zlin/PanCancer_ICI/figures/Cluster_response/alluvium_comprehensive.pdf', width = 16, height = 8)
 
 # df <- pt_df |> rename(C_pre = cluster_pre, C_change = cluster_change)|> make_long(C_pre, C_change)
 # ggplot(df, aes(x = x,                        
@@ -650,6 +659,6 @@ ggsave('/bigdata/zlin/Melanoma_meta/figures/Cluster_response/alluvium_comprehens
 #               show.legend = TRUE)  +   # This determines if you want your legend to show
 #   scale_fill_d3() + xlab("") + 
 #   theme_sankey(base_size = 12) + guides(fill = guide_legend(title = "Cluster"))
-# ggsave('/bigdata/zlin/Melanoma_meta/figures/Cluster_response/sankey_pre_change.pdf')
+# ggsave('/bigdata/zlin/PanCancer_ICI/figures/Cluster_response/sankey_pre_change.pdf')
 
 

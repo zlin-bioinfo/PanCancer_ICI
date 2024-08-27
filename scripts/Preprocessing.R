@@ -12,15 +12,15 @@ scGate_models_DB <- get_scGateDB()
 bped <- celldex::BlueprintEncodeData()
 bped <- bped[, bped$label.main %in% c("CD4+ T-cells", "CD8+ T-cells", "NK cells", "B-cells", "DC", "Monocytes", "Macrophages", "Neutrophils", "Endothelial cells", "Epithelial cells", "Myocytes", "Fibroblasts", "Melanocytes")]
 # cellcycle genelist
-exp.mat <- read.table(file = "/bigdata/zlin/Melanoma_meta/tables/nestorawa_forcellcycle_expressionMatrix.txt", header = TRUE, 
+exp.mat <- read.table(file = "/bigdata/zlin/PanCancer_ICI/tables/nestorawa_forcellcycle_expressionMatrix.txt", header = TRUE, 
                       as.is = TRUE, row.names = 1)
 s.genes <- cc.genes$s.genes
 g2m.genes <- cc.genes$g2m.genes 
 data(EnsemblGeneTable.Hs)
 # # import cell type signature
-# sign_celltype <- read.csv('/bigdata/zlin/Melanoma_meta/tables/celltype_signature.csv') |> as.list() |> lapply(function(x) x[x != ''])
+# sign_celltype <- read.csv('/bigdata/zlin/PanCancer_ICI/tables/celltype_signature.csv') |> as.list() |> lapply(function(x) x[x != ''])
 # # noise genes
-# gene_rm <- readxl::read_excel('/bigdata/zlin/Melanoma_meta/tables/41586_2022_5400_MOESM3_ESM.xlsx', sheet = '1d_Genes excluded', skip = 2)[,-1]
+# gene_rm <- readxl::read_excel('/bigdata/zlin/PanCancer_ICI/tables/41586_2022_5400_MOESM3_ESM.xlsx', sheet = '1d_Genes excluded', skip = 2)[,-1]
 # gene_rm <- as.vector(t(gene_rm)) |> .[!is.na(.)] |> append('MALAT1')
 getPalette <- colorRampPalette(brewer.pal(9, "Set1"))
 paramSweep_v5 <- function (seu, PCs = 1:10, sct = FALSE, num.cores = 1) 
@@ -47,13 +47,13 @@ paramSweep_v5 <- function (seu, PCs = 1:10, sct = FALSE, num.cores = 1)
   if (num.cores > 1) {
     require(parallel)
     cl <- makeCluster(num.cores)
-    output2 <- mclapply(as.list(1:length(pN)), FUN = parallel_paramSweep_v3, 
+    output2 <- mclapply(as.list(1:length(pN)), FUN = parallel_paramSweep, 
                         n.real.cells, real.cells, pK, pN, data, orig.commands, 
                         PCs, sct, mc.cores = num.cores)
     stopCluster(cl)
   }
   else {
-    output2 <- lapply(as.list(1:length(pN)), FUN = parallel_paramSweep_v3, 
+    output2 <- lapply(as.list(1:length(pN)), FUN = parallel_paramSweep, 
                       n.real.cells, real.cells, pK, pN, data, orig.commands, 
                       PCs, sct)
   }
@@ -205,10 +205,10 @@ seu_list <- lapply(sample_list, function(sample) {
   return(seu)
 })
 names(seu_list) <- sample_list
-saveRDS(seu_list, file = '/bigdata/zlin/Melanoma_meta/data/SKCM_Becker/raw.rds')
+saveRDS(seu_list, file = '/bigdata/zlin/PanCancer_ICI/data/SKCM_Becker/raw.rds')
 
 # Preprocessing
-seu_list <- readRDS('/bigdata/zlin/Melanoma_meta/data/SKCM_Becker/raw.rds')
+seu_list <- readRDS('/bigdata/zlin/PanCancer_ICI/data/SKCM_Becker/raw.rds')
 seu_list <- lapply(seu_list, function(seu){
   print(unique(seu$SampleID))
   seu$percent_mito <- PercentageFeatureSet(seu, pattern = "^MT-")
@@ -254,8 +254,8 @@ seu_list <- lapply(seu_list, function(seu){
   seu <- scGate(seu, model = scGate_models_DB$human$TME_HiRes, ncores = 30)
   return(seu)
 })
-qsave(seu_list, file = '/bigdata/zlin/Melanoma_meta/data/SKCM_Becker/list.qs')
-seu_list <- qread('/bigdata/zlin/Melanoma_meta/data/SKCM_Becker/list.qs')
+qsave(seu_list, file = '/bigdata/zlin/PanCancer_ICI/data/SKCM_Becker/list.qs')
+seu_list <- qread('/bigdata/zlin/PanCancer_ICI/data/SKCM_Becker/list.qs')
 # check sample quality
 df <- data.frame(
   nfeature = sapply(seu_list, function(seu_obj){nfeature <- sum(Matrix::rowSums(seu_obj@assays$RNA$counts>0)>3)
@@ -279,7 +279,7 @@ seu$time_point[seu$time_point=='after'] <- 'Post'
 seu$time_point[seu$time_point=='before'] <- 'Pre'
 seu$patient <- sample_metadata[seu$SampleID,]$Patient
 seu$patient <- str_replace(seu$patient, 'atient ','')
-clinical_metadata <- readxl::read_xlsx('/bigdata/zlin/Melanoma_meta/data/SKCM_Becker/clinical_info.xlsx')
+clinical_metadata <- readxl::read_xlsx('/bigdata/zlin/PanCancer_ICI/data/SKCM_Becker/clinical_info.xlsx')
 seu$response <- clinical_metadata$`ICI response`[match(seu$patient, clinical_metadata$Patient)]
 seu$site <- clinical_metadata$`Leision type(primary site/metastasis)`[match(seu$patient, clinical_metadata$Patient)]
 seu$dataset <- 'SKCM_Becker'
@@ -311,8 +311,10 @@ seu <- seu |>
   ScaleData() |> 
   RunPCA(verbose=FALSE) |> 
   RunHarmony(group.by.vars = "sample") |> 
-  RunUMAP(reduction = "harmony", dims = 1:20) |>  
-  FindNeighbors(reduction = "harmony", dims = 1:20) |> FindClusters()
+  FindNeighbors(reduction = "harmony", dims = 1:20) |> 
+  FindClusters() |> 
+  RunUMAP(reduction = "harmony", dims = 1:20)
+  
 getPalette <- colorRampPalette(brewer.pal(9, "Set1"))
 DimPlot(seu, group.by = 'celltype_bped_main', cols = getPalette(length(unique(seu$celltype_bped_main))))
 DimPlot(seu, group.by = 'scGate_multi', cols = getPalette(length(unique(seu$scGate_multi))))
@@ -352,8 +354,8 @@ DimPlot(seu, group.by = 'celltype_major', cols = getPalette(length(unique(seu$se
 DotPlot(seu, group.by = 'celltype_major', features = genes_to_check) + RotatedAxis()
 seu <- subset(seu, subset = celltype_major %in% c('unknown', 'Neutrophils') | (scGate_multi == 'Multi'), invert = T)
 seu <- CreateSeuratObject(counts = seu@assays$RNA$counts, meta.data = seu@meta.data)
-qsave(seu, file = '/bigdata/zlin/Melanoma_meta/data/SKCM_Becker/seu_r1.qs')
-seu <- qread('/bigdata/zlin/Melanoma_meta/data/SKCM_Becker/seu_r1.qs')
+qsave(seu, file = '/bigdata/zlin/PanCancer_ICI/data/SKCM_Becker/seu_r1.qs')
+seu <- qread('/bigdata/zlin/PanCancer_ICI/data/SKCM_Becker/seu_r1.qs')
 
 # Franken
 dataset = 'HNSC_Franken'
@@ -428,8 +430,8 @@ seu[['celltype_bped_fine']] <- pred_bped_fine$pruned.labels
 seu$celltype_bped_main[is.na(seu$celltype_bped_main)] <- 'unknown'
 seu$celltype_bped_fine[is.na(seu$celltype_bped_fine)] <- 'unknown'
 seu$scGate_multi[is.na(seu$scGate_multi)] <- 'unknown'
-qsave(seu, file = '/bigdata/zlin/Melanoma_meta/data/HNSC_Franken/processing.qs')
-seu <- qread('/bigdata/zlin/Melanoma_meta/data/HNSC_Franken/processing.qs')
+qsave(seu, file = '/bigdata/zlin/PanCancer_ICI/data/HNSC_Franken/processing.qs')
+seu <- qread('/bigdata/zlin/PanCancer_ICI/data/HNSC_Franken/processing.qs')
 genes_to_check = list(c('CD3D', 'CD3E', 'CD4', 'CD8A', 'CD8B'), # T cells 'CD8B'
                       c('KLRD1','KLRB1', 'KLRC1', 'NCAM1'), # NK cells 'KLRB1', 'KLRC1', 'CD16', 'CD56', 'CD11b', 'CD11c'
                       c('CD79A','CD19', 'MS4A1'),  # B cells 
@@ -469,14 +471,14 @@ seu <- subset(seu, subset = (celltype_major %in% c('Neutrophils','unknown','Mela
 seu$prior <- 'No'
 seu$modality <- ifelse(seu$treatment == 'aPDL1+CTLA4', 'Dual', 'Mono')
 seu <- CreateSeuratObject(counts = seu@assays$RNA$counts, meta.data = seu@meta.data)
-qsave(seu, file = '/bigdata/zlin/Melanoma_meta/data/HNSC_Franken/seu_r1.qs')
-seu <- qread('/bigdata/zlin/Melanoma_meta/data/HNSC_Franken/seu_r1.qs')
+qsave(seu, file = '/bigdata/zlin/PanCancer_ICI/data/HNSC_Franken/seu_r1.qs')
+seu <- qread('/bigdata/zlin/PanCancer_ICI/data/HNSC_Franken/seu_r1.qs')
 
 # BRCA_Bassez anti-PD1 dataset 
 dataset = 'BRCA_Bassez1'
 matrix_count <- readRDS('/bigdata/zlin/Melanoma/data/additional_datasets/Bassez/1863-counts_cells_cohort1.rds')
 matrix_meta <- read.csv('/bigdata/zlin/Melanoma/data/additional_datasets/Bassez/1872-BIOKEY_metaData_cohort1_web.csv',row.names = 1)
-matrix_tcr <- read.csv('/bigdata/zlin/Melanoma_meta/data/BRCA_Bassez1/1879-BIOKEY_barcodes_vdj_combined_cohort1.csv')
+matrix_tcr <- read.csv('/bigdata/zlin/PanCancer_ICI/data/BRCA_Bassez1/1879-BIOKEY_barcodes_vdj_combined_cohort1.csv')
 seu <- CreateSeuratObject(matrix_count, meta.data = matrix_meta)
 seu <- subset(seu, subset = expansion == "n/a", invert = TRUE)
 seu[['cdr3s_nt']] <- matrix_tcr$cdr3_nt[match(str_split(colnames(seu),'-', simplify = T)[,1], matrix_tcr$barcode)]
@@ -540,8 +542,8 @@ seu[['celltype_bped_fine']] <- pred_bped_fine$pruned.labels
 seu$celltype_bped_main[is.na(seu$celltype_bped_main)] <- 'unknown'
 seu$celltype_bped_fine[is.na(seu$celltype_bped_fine)] <- 'unknown'
 seu$scGate_multi[is.na(seu$scGate_multi)] <- 'unknown'
-qsave(seu, file = '/bigdata/zlin/Melanoma_meta/data/BRCA_Bassez1/processing.qs')
-seu <- qread('/bigdata/zlin/Melanoma_meta/data/BRCA_Bassez1/processing.qs')
+qsave(seu, file = '/bigdata/zlin/PanCancer_ICI/data/BRCA_Bassez1/processing.qs')
+seu <- qread('/bigdata/zlin/PanCancer_ICI/data/BRCA_Bassez1/processing.qs')
 genes_to_check = list(c('CD3D', 'CD3E', 'CD4', 'CD8A', 'CD8B'), # T cells 'CD8B'
                       c('KLRD1','KLRB1', 'KLRC1', 'NCAM1'), # NK cells 'KLRB1', 'KLRC1', 'CD16', 'CD56', 'CD11b', 'CD11c'
                       c('CD79A','CD19', 'MS4A1'),  # B cells 
@@ -582,13 +584,13 @@ seu$prior <- 'No'
 seu$modality <- ifelse(seu$treatment == 'aPD1+CTLA4', 'Dual', 'Mono')
 seu$cancertype <- ifelse(seu$subtype == 'HER2+', 'HER2+BC', ifelse(seu$subtype == 'ER+', 'ER+BC', 'TNBC'))
 seu <- CreateSeuratObject(counts = seu@assays$RNA$counts, meta.data = seu@meta.data)
-qsave(seu, file = '/bigdata/zlin/Melanoma_meta/data/BRCA_Bassez1/seu_r1.qs')
-seu <- qread('/bigdata/zlin/Melanoma_meta/data/BRCA_Bassez1/seu_r1.qs')
+qsave(seu, file = '/bigdata/zlin/PanCancer_ICI/data/BRCA_Bassez1/seu_r1.qs')
+seu <- qread('/bigdata/zlin/PanCancer_ICI/data/BRCA_Bassez1/seu_r1.qs')
 
 # BRCA_Bassez Chemo+anti-PD1 therapy
 matrix_count <- readRDS('/bigdata/zlin/Melanoma/data/additional_datasets/Bassez/1867-counts_cells_cohort2.rds')
 matrix_meta <- read.csv('/bigdata/zlin/Melanoma/data/additional_datasets/Bassez/1871-BIOKEY_metaData_cohort2_web.csv',row.names = 1)
-matrix_tcr <- read.csv('/bigdata/zlin/Melanoma_meta/data/BRCA_Bassez2/1880-BIOKEY_barcodes_vdj_combined_cohort2.csv')
+matrix_tcr <- read.csv('/bigdata/zlin/PanCancer_ICI/data/BRCA_Bassez2/1880-BIOKEY_barcodes_vdj_combined_cohort2.csv')
 seu <- CreateSeuratObject(matrix_count, meta.data = matrix_meta)
 seu[['cdr3s_nt']] <- matrix_tcr$cdr3_nt[match(str_split(colnames(seu),'-', simplify = T)[,1], matrix_tcr$barcode)]
 extract_unique_tcr <- function(cdr3s_nt) {
@@ -638,8 +640,8 @@ seu[['celltype_bped_fine']] <- pred_bped_fine$pruned.labels
 seu$celltype_bped_main[is.na(seu$celltype_bped_main)] <- 'unknown'
 seu$celltype_bped_fine[is.na(seu$celltype_bped_fine)] <- 'unknown'
 seu$scGate_multi[is.na(seu$scGate_multi)] <- 'unknown'
-qsave(seu, file = '/bigdata/zlin/Melanoma_meta/data/BRCA_Bassez2/processing.qs')
-seu <- qread('/bigdata/zlin/Melanoma_meta/data/BRCA_Bassez2/processing.qs')
+qsave(seu, file = '/bigdata/zlin/PanCancer_ICI/data/BRCA_Bassez2/processing.qs')
+seu <- qread('/bigdata/zlin/PanCancer_ICI/data/BRCA_Bassez2/processing.qs')
 genes_to_check = list(c('CD3D', 'CD3E', 'CD4', 'CD8A', 'CD8B'), # T cells 'CD8B'
                       c('KLRD1','KLRB1', 'KLRC1', 'NCAM1'), # NK cells 'KLRB1', 'KLRC1', 'CD16', 'CD56', 'CD11b', 'CD11c'
                       c('CD79A','CD19', 'MS4A1'),  # B cells 
@@ -691,13 +693,13 @@ seu$prior <- 'Yes'
 seu$modality <- ifelse(seu$treatment == 'aPD1+CTLA4', 'Dual', 'Mono')
 seu$cancertype <- ifelse(seu$subtype == 'HER2+', 'HER2+BC', ifelse(seu$subtype == 'ER+', 'ER+BC', 'TNBC'))
 seu <- CreateSeuratObject(counts = seu@assays$RNA$counts, meta.data = seu@meta.data)
-qsave(seu, file = '/bigdata/zlin/Melanoma_meta/data/BRCA_Bassez2/seu_r1.qs')
-seu <- qread('/bigdata/zlin/Melanoma_meta/data/BRCA_Bassez2/seu_r1.qs')
+qsave(seu, file = '/bigdata/zlin/PanCancer_ICI/data/BRCA_Bassez2/seu_r1.qs')
+seu <- qread('/bigdata/zlin/PanCancer_ICI/data/BRCA_Bassez2/seu_r1.qs')
 
 # TNBC
-input_dir <- "/bigdata/zlin/Melanoma_meta/data/TNBC_Zhang/"
+input_dir <- "/bigdata/zlin/PanCancer_ICI/data/TNBC_Zhang/"
 count_matrix <- Read10X(input_dir,gene.column=1)
-clinical_data <- readxl::read_xlsx("/bigdata/zlin/Melanoma_meta/data/TNBC_Zhang/1-s2.0-S1535610821004992-mmc2.xlsx", skip = 1) |>
+clinical_data <- readxl::read_xlsx("/bigdata/zlin/PanCancer_ICI/data/TNBC_Zhang/1-s2.0-S1535610821004992-mmc2.xlsx", skip = 1) |>
   janitor::clean_names() |>
   slice(2:23) |>
   tidyr::fill(treatment) 
@@ -751,8 +753,8 @@ seu[['celltype_bped_fine']] <- pred_bped_fine$pruned.labels
 seu$celltype_bped_main[is.na(seu$celltype_bped_main)] <- 'unknown'
 seu$celltype_bped_fine[is.na(seu$celltype_bped_fine)] <- 'unknown'
 seu$scGate_multi[is.na(seu$scGate_multi)] <- 'unknown'
-qsave(seu, file = '/bigdata/zlin/Melanoma_meta/data/TNBC_Zhang/processing.qs')
-seu <- qread('/bigdata/zlin/Melanoma_meta/data/TNBC_Zhang/processing.qs')
+qsave(seu, file = '/bigdata/zlin/PanCancer_ICI/data/TNBC_Zhang/processing.qs')
+seu <- qread('/bigdata/zlin/PanCancer_ICI/data/TNBC_Zhang/processing.qs')
 genes_to_check = list(c('CD3D', 'CD3E', 'CD4', 'CD8A', 'CD8B'), # T cells 'CD8B'
                       c('KLRD1','KLRB1', 'KLRC1', 'NCAM1'), # NK cells 'KLRB1', 'KLRC1', 'CD16', 'CD56', 'CD11b', 'CD11c'
                       c('CD79A','CD19', 'MS4A1'),  # B cells 
@@ -775,20 +777,20 @@ DimPlot(seu, group.by = 'celltype_major', cols = getPalette(length(unique(seu$se
 table(seu$celltype_major)
 seu <- subset(seu, subset = (celltype_major %in% c('Epithelial cells','unknown','Endothelial cells')) | (scGate_multi == 'Multi'), invert = T)
 seu <- CreateSeuratObject(counts = seu@assays$RNA$counts, meta.data = seu@meta.data)
-qsave(seu, file = '/bigdata/zlin/Melanoma_meta/data/TNBC_Zhang/seu_r1.qs')
-seu <- qread('/bigdata/zlin/Melanoma_meta/data/TNBC_Zhang/seu_r1.qs')
+qsave(seu, file = '/bigdata/zlin/PanCancer_ICI/data/TNBC_Zhang/seu_r1.qs')
+seu <- qread('/bigdata/zlin/PanCancer_ICI/data/TNBC_Zhang/seu_r1.qs')
 
 # Yost
 dataset = 'BCC_Yost'
-matrix_count <- data.table::fread('/bigdata/zlin/Melanoma_meta/data/BCC_Yost/GSE123813_bcc_scRNA_counts.txt') |> 
+matrix_count <- data.table::fread('/bigdata/zlin/PanCancer_ICI/data/BCC_Yost/GSE123813_bcc_scRNA_counts.txt') |> 
   tibble::column_to_rownames(var = 'V1') |> as.sparse()
-matrix_meta <- data.table::fread('/bigdata/zlin/Melanoma_meta/data/BCC_Yost/GSE123813_bcc_all_metadata.txt') |> 
+matrix_meta <- data.table::fread('/bigdata/zlin/PanCancer_ICI/data/BCC_Yost/GSE123813_bcc_all_metadata.txt') |> 
   tibble::column_to_rownames(var = 'cell.id') 
 seu <- CreateSeuratObject(matrix_count, meta.data = matrix_meta) |> 
   subset(subset = orig.ident %in% c('bcc.su010.pre.tcell','bcc.su010.post.tcell'), invert = T)
 seu$cancertype <- 'BCC'
 seu$res_metric <- 'RECIST'
-matrix_tcr <- read.table('/bigdata/zlin/Melanoma_meta/data/BCC_Yost/GSE123813_bcc_tcr.txt')
+matrix_tcr <- read.table('/bigdata/zlin/PanCancer_ICI/data/BCC_Yost/GSE123813_bcc_tcr.txt')
 colnames(seu@meta.data)[which(colnames(seu@meta.data) == 'treatment')] <- "time_point"
 seu$time_point <- mapvalues(seu$time_point, from = c('pre','post'), to = c('Pre','Post'))
 colnames(seu@meta.data)[which(colnames(seu@meta.data) == 'cluster')] <- "celltype_orig"
@@ -839,12 +841,12 @@ seu[['celltype_bped_fine']] <- pred_bped_fine$pruned.labels
 seu$celltype_bped_main[is.na(seu$celltype_bped_main)] <- 'unknown'
 seu$celltype_bped_fine[is.na(seu$celltype_bped_fine)] <- 'unknown'
 seu$scGate_multi[is.na(seu$scGate_multi)] <- 'unknown'
-qsave(seu, file = '/bigdata/zlin/Melanoma_meta/data/BCC_Yost/processing.qs')
-seu <- qread('/bigdata/zlin/Melanoma_meta/data/BCC_Yost/processing.qs')
-tcr <- read.table('/bigdata/zlin/Melanoma_meta/data/BCC_Yost/GSE123813_bcc_tcr.txt')
+qsave(seu, file = '/bigdata/zlin/PanCancer_ICI/data/BCC_Yost/processing.qs')
+seu <- qread('/bigdata/zlin/PanCancer_ICI/data/BCC_Yost/processing.qs')
+tcr <- read.table('/bigdata/zlin/PanCancer_ICI/data/BCC_Yost/GSE123813_bcc_tcr.txt')
 seu[['cdr3s_nt']] <- tcr$cdr3s_nt[match(rownames(seu@meta.data), rownames(tcr))]
 # clinical
-clinical <- readxl::read_xlsx('/bigdata/zlin/Melanoma_meta/data/BCC_Yost/41591_2019_522_MOESM2_ESM.xlsx', skip = 2, n_max = 16)
+clinical <- readxl::read_xlsx('/bigdata/zlin/PanCancer_ICI/data/BCC_Yost/41591_2019_522_MOESM2_ESM.xlsx', skip = 2, n_max = 16)
 clinical <- clinical[clinical$Patient %in% unique(str_replace(seu$patient, 'BCC/SCC_Yost_','')),]
 clinical$`scRNA days pre treatment`[clinical$Patient == 'su001'] <- -78
 clinical$`scRNA days post treatment`[clinical$Patient == 'su003'] <- 121
@@ -883,14 +885,14 @@ table(seu$celltype_major)
 seu <- subset(seu, subset = (celltype_major %in% c('unknown','Melanocytes')) | (scGate_multi == 'Multi'), invert = T)
 seu <- subset(seu, subset = (patient %in% c('BCC/SCC_Yost_su009','BCC/SCC_Yost_su012') & (celltype_major %in% c('B-cells', 'Endothelial cells', 'Fibroblasts','Monocytes' ,'Plasma'))), invert = T)
 seu <- CreateSeuratObject(counts = seu@assays$RNA$counts, meta.data = seu@meta.data)
-qsave(seu, file = '/bigdata/zlin/Melanoma_meta/data/BCC_Yost/seu_r1.qs')
-seu <- qread('/bigdata/zlin/Melanoma_meta/data/BCC_Yost/seu_r1.qs')
+qsave(seu, file = '/bigdata/zlin/PanCancer_ICI/data/BCC_Yost/seu_r1.qs')
+seu <- qread('/bigdata/zlin/PanCancer_ICI/data/BCC_Yost/seu_r1.qs')
 
 
 # SCC_Yost
-matrix_count <- data.table::fread('/bigdata/zlin/Melanoma_meta/data/SCC_Yost/GSE123813_scc_scRNA_counts.txt') |>
+matrix_count <- data.table::fread('/bigdata/zlin/PanCancer_ICI/data/SCC_Yost/GSE123813_scc_scRNA_counts.txt') |>
   tibble::column_to_rownames(var = 'V1') |> as.sparse()
-matrix_meta <- data.table::fread('/bigdata/zlin/Melanoma_meta/data/SCC_Yost/GSE123813_scc_metadata.txt') |>
+matrix_meta <- data.table::fread('/bigdata/zlin/PanCancer_ICI/data/SCC_Yost/GSE123813_scc_metadata.txt') |>
   tibble::column_to_rownames(var = 'cell.id')
 seu <- CreateSeuratObject(matrix_count, meta.data = matrix_meta)
 seu$subtype <- 'SCC'
@@ -921,11 +923,11 @@ seu <- seu%>%
   CellCycleScoring(s.features = s.genes, g2m.features = g2m.genes)
 seu$CC.Difference <- seu$S.Score - seu$G2M.Score
 seu[['celltype_major']] <- 'T_cells'
-tcr <- read.table('/bigdata/zlin/Melanoma_meta/data/SCC_Yost/GSE123813_scc_tcr.txt')
+tcr <- read.table('/bigdata/zlin/PanCancer_ICI/data/SCC_Yost/GSE123813_scc_tcr.txt')
 seu[['cdr3s_nt']] <- tcr$cdr3s_nt[match(rownames(seu@meta.data), rownames(tcr))]
 
 #clinical
-clinical <- readxl::read_xlsx('/bigdata/zlin/Melanoma_meta/data/BCC_Yost/41591_2019_522_MOESM2_ESM.xlsx', skip = 2, n_max = 16)
+clinical <- readxl::read_xlsx('/bigdata/zlin/PanCancer_ICI/data/BCC_Yost/41591_2019_522_MOESM2_ESM.xlsx', skip = 2, n_max = 16)
 clinical <- clinical[clinical$Patient %in% unique(seu$patient),]
 clinical$`scRNA days pre treatment`[clinical$Patient == 'su001'] <- -78
 clinical$interval <- as.numeric(clinical$`scRNA days post treatment`) 
@@ -936,14 +938,14 @@ seu$patient <- paste0(seu$dataset, '_', seu$patient)
 seu$sample <- paste0(seu$patient, '_', seu$time_point)
 seu$modality <- 'Mono'
 seu <- CreateSeuratObject(counts = seu@assays$RNA$counts, meta.data = seu@meta.data)
-qsave(seu, file = '/bigdata/zlin/Melanoma_meta/data/SCC_Yost/seu_r1.qs')
+qsave(seu, file = '/bigdata/zlin/PanCancer_ICI/data/SCC_Yost/seu_r1.qs')
 
 # Liu NSCLC
-matrix_count <- readRDS('/bigdata/zlin/Melanoma_meta/data/NSCLC_Liu/GSE179994_all.Tcell.rawCounts.rds')
-matrix_meta <- data.table::fread('/bigdata/zlin/Melanoma_meta/data/NSCLC_Liu/GSE179994_Tcell.metadata.tsv') |> 
+matrix_count <- readRDS('/bigdata/zlin/PanCancer_ICI/data/NSCLC_Liu/GSE179994_all.Tcell.rawCounts.rds')
+matrix_meta <- data.table::fread('/bigdata/zlin/PanCancer_ICI/data/NSCLC_Liu/GSE179994_Tcell.metadata.tsv') |> 
   tibble::column_to_rownames('cellid') 
 seu <- CreateSeuratObject(matrix_count, meta.data = matrix_meta)
-matrix_tcr <- read.delim('/bigdata/zlin/Melanoma_meta/data/NSCLC_Liu/GSE179994_all.scTCR.tsv', row.names = 1)
+matrix_tcr <- read.delim('/bigdata/zlin/PanCancer_ICI/data/NSCLC_Liu/GSE179994_all.scTCR.tsv', row.names = 1)
 seu$percent_mito <- PercentageFeatureSet(seu, pattern = "^MT-")
 seu <- subset(seu, subset = nFeature_RNA > 200 & nFeature_RNA < 6000 & percent_mito < 20)
 seu[['patient']] <- str_split(seu$sample, '\\.', simplify = T)[,1]
@@ -989,7 +991,7 @@ seu$CC.Difference <- seu$S.Score - seu$G2M.Score
 matrix_tcr <- matrix_tcr[intersect(colnames(seu), rownames(matrix_tcr)),]
 seu$clone <- matrix_tcr$clone.id[match(colnames(seu), rownames(matrix_tcr))]
 seu <- CreateSeuratObject(counts = seu@assays$RNA$counts, meta.data = seu@meta.data)
-qsave(seu, file = '/bigdata/zlin/Melanoma_meta/data/NSCLC_Liu/seu_r1.qs')
+qsave(seu, file = '/bigdata/zlin/PanCancer_ICI/data/NSCLC_Liu/seu_r1.qs')
 
 # CRC_Li
 # in terminal
@@ -997,8 +999,8 @@ qsave(seu, file = '/bigdata/zlin/Melanoma_meta/data/NSCLC_Liu/seu_r1.qs')
 # find -name "*matrix.mtx.gz" | while read i; do mv $i $(dirname $i)/matrix.mtx.gz; done
 # find -name "*features.tsv.gz" | while read i; do mv $i $(dirname $i)/features.tsv.gz; done
 # find -name "*barcodes.tsv.gz" | while read i; do mv $i $(dirname $i)/barcodes.tsv.gz; done
-sample_list = list.files("/bigdata/zlin/Melanoma_meta/data/CRC_Li/", pattern = 'GSM')
-input_dir_list = paste0(rep("/bigdata/zlin/Melanoma_meta/data/CRC_Li/", 14), sample_list)
+sample_list = list.files("/bigdata/zlin/PanCancer_ICI/data/CRC_Li/", pattern = 'GSM')
+input_dir_list = paste0(rep("/bigdata/zlin/PanCancer_ICI/data/CRC_Li/", 14), sample_list)
 seu_list <- lapply(sample_list, function(sample) {
   input_dir <- input_dir_list[str_detect(input_dir_list, sample)]
   count_matrix <- Read10X(input_dir)
@@ -1007,10 +1009,10 @@ seu_list <- lapply(sample_list, function(sample) {
   return(seu)
 })
 names(seu_list) <- sample_list
-qsave(seu_list, file = '/bigdata/zlin/Melanoma_meta/data/CRC_Li/raw.qs')
+qsave(seu_list, file = '/bigdata/zlin/PanCancer_ICI/data/CRC_Li/raw.qs')
 
-seu_list <- qread('/bigdata/zlin/Melanoma_meta/data/CRC_Li/raw.qs')
-sample_list = list.files("/bigdata/zlin/Melanoma_meta/data/CRC_Li/", pattern = 'GSM')
+seu_list <- qread('/bigdata/zlin/PanCancer_ICI/data/CRC_Li/raw.qs')
+sample_list = list.files("/bigdata/zlin/PanCancer_ICI/data/CRC_Li/", pattern = 'GSM')
 seu_list <- lapply(seu_list, function(seu){
   print(unique(seu$SampleID))
   seu$percent_mito <- PercentageFeatureSet(seu, pattern = "^MT-")
@@ -1056,8 +1058,8 @@ seu_list <- lapply(seu_list, function(seu){
   seu <- scGate(seu, model = scGate_models_DB$human$TME_HiRes, ncores = 30)
   return(seu)
 })
-qsave(seu_list, file = '/bigdata/zlin/Melanoma_meta/data/CRC_Li/list.qs')
-seu_list <- qread('/bigdata/zlin/Melanoma_meta/data/CRC_Li/list.qs')
+qsave(seu_list, file = '/bigdata/zlin/PanCancer_ICI/data/CRC_Li/list.qs')
+seu_list <- qread('/bigdata/zlin/PanCancer_ICI/data/CRC_Li/list.qs')
 # check sample quality
 (df <- data.frame(
   nfeature = sapply(seu_list, function(seu){nfeature <- sum(Matrix::rowSums(seu@assays$RNA$counts>0)>3)
@@ -1100,18 +1102,17 @@ seu$scGate_multi[is.na(seu$scGate_multi)] <- 'unknown'
 genes_to_check = list(c('CD3D', 'CD3E', 'CD4', 'CD8A', 'CD8B'), # T cells 'CD8B'
                       c('KLRD1','KLRB1', 'KLRC1', 'NCAM1'), # NK cells 'KLRB1', 'KLRC1', 'CD16', 'CD56', 'CD11b', 'CD11c'
                       c('CD79A','CD19', 'MS4A1'),  # B cells 
-                      c('CD27','CD38'), # Plasma cells 
+                      c('CD27','CD38','JCHAIN'), # Plasma cells 
                       c('LILRA4','IL3RA','PLD4'),
                       c('KIT','TPSAB1','CPA3'),
                       c('CLEC9A','FCER1A','LAMP3'), 
                       c('CD68', 'LYZ', 'CD14'),  
                       c('COL3A1','FAP', 'COL1A1','ATCA2'), 
                       c('PECAM1','VWF', 'ENG'), 
-                      c('MLANA','MITF', 'TYR'), 
                       c('KRT15','KRT17','EPCAM'),
                       c('MKI67')
 )
-names(genes_to_check) <- c('T','NK','B','Plasma','pDC','Mast','cDC','Mo/Mac','Fibro','Endo','Mela','Epi','Proliferating')
+names(genes_to_check) <- c('T','NK','B','Plasma','pDC','Mast','cDC','Mo/Mac','Fibro','Endo','Epi','Proliferating')
 DotPlot(seu, group.by = 'seurat_clusters', features = genes_to_check) + RotatedAxis()
 DotPlot(seu, group.by = 'celltype_bped_main', features = genes_to_check) + RotatedAxis()
 DotPlot(seu, group.by = 'scGate_multi', features = genes_to_check) + RotatedAxis()
@@ -1120,7 +1121,7 @@ seu$celltype_major <- seu$celltype_bped_main
 seu$celltype_major[seu$scGate_multi == 'Mast'] <- 'Mast'
 seu$celltype_major[seu$scGate_multi == 'PlasmaCell' & seu$celltype_major == 'B-cells'] <- 'Plasma'
 seu$celltype_major[seu$scGate_multi == 'Endothelial' & seu$celltype_major == 'unknown'] <- 'Endothelial cells'
-seu$celltype_major[seu$scGate_multi == 'Epithelial' & seu$celltype_major == 'unknown'] <- 'Endothelial cells'
+seu$celltype_major[seu$scGate_multi == 'Epithelial' & seu$celltype_major == 'unknown'] <- 'Epithelial cells'
 DimPlot(seu, group.by = 'celltype_major', cols = getPalette(length(unique(seu$seurat_clusters)))) /
   DotPlot(seu, group.by = 'celltype_major', features = genes_to_check) + RotatedAxis()
 table(seu$celltype_major)
@@ -1131,12 +1132,12 @@ seu$interval <- 84
 seu$response <- ifelse(seu$response == 'pCR', 'RE', 'NR')
 seu$res_metric <- 'Pathology'
 seu <- CreateSeuratObject(counts = seu@assays$RNA$counts, meta.data = seu@meta.data)
-qsave(seu, file = '/bigdata/zlin/Melanoma_meta/data/CRC_Li/seu_r1.qs')
-seu <- qread('/bigdata/zlin/Melanoma_meta/data/CRC_Li/seu_r1.qs')
+qsave(seu, file = '/bigdata/zlin/PanCancer_ICI/data/CRC_Li/seu_r1.qs')
+seu1 <- qread('/bigdata/zlin/PanCancer_ICI/data/CRC_Li/seu_r1.qs')
 
 # IMCISION
-matrix_count <- read.table('/bigdata/zlin/Melanoma_meta/data/HNSC_IMCISION/GSM7324294_Count_data_IMCISION.txt') |> as.sparse()
-matrix_meta <- read.table('/bigdata/zlin/Melanoma_meta/data/HNSC_IMCISION/GSM7324295_Meta_data_IMCISION.txt', header = TRUE, sep = '\t')
+matrix_count <- read.table('/bigdata/zlin/PanCancer_ICI/data/HNSC_IMCISION/GSM7324294_Count_data_IMCISION.txt') |> as.sparse()
+matrix_meta <- read.table('/bigdata/zlin/PanCancer_ICI/data/HNSC_IMCISION/GSM7324295_Meta_data_IMCISION.txt', header = TRUE, sep = '\t')
 seu <- CreateSeuratObject(matrix_count, meta.data = matrix_meta)
 seu$sample <- paste0(seu$patient, '_', seu$timepoint)
 seu[["percent_mito"]] <- PercentageFeatureSet(seu, pattern = "^MT-")
@@ -1212,17 +1213,17 @@ DimPlot(seu, group.by = 'celltype_major', cols = getPalette(length(unique(seu$se
 table(seu$celltype_major)
 seu <- subset(seu, subset = (celltype_major %in% c('Epithelial cells','unknown','Endothelial cells','Neutrophils')) | (scGate_multi == 'Multi'), invert = T)
 seu <- CreateSeuratObject(counts = seu@assays$RNA$counts, meta.data = seu@meta.data)
-qsave(seu, file = '/bigdata/zlin/Melanoma_meta/data/HNSC_IMCISION/seu_r1.qs')
+qsave(seu, file = '/bigdata/zlin/PanCancer_ICI/data/HNSC_IMCISION/seu_r1.qs')
 
 #HNSC Luoma
-files <- list.files('/bigdata/zlin/Melanoma_meta/data/HNSC_Luoma/')
+files <- list.files('/bigdata/zlin/PanCancer_ICI/data/HNSC_Luoma/')
 files_scrna_pre <- files[str_detect(files, 'pre-Tx_GEX_sc_tumor')]
 pattern <- "P\\d+"
 pt_rna <- str_extract(files_scrna_pre, pattern)
 combined_pattern <- paste(paste0(pt_rna, '_post-Tx_GEX_sc_tumor'), collapse = "|")
 files_scrna_post <- files[str_detect(files, combined_pattern)]
-count_list <- purrr::map(paste0('/bigdata/zlin/Melanoma_meta/data/HNSC_Luoma/' ,c(files_scrna_pre, files_scrna_post)), Read10X_h5)
-clin_df <- readxl::read_xlsx('/bigdata/zlin/Melanoma_meta/data/HNSC_Luoma/1-s2.0-S0092867422007231-mmc1.xlsx') |> 
+count_list <- purrr::map(paste0('/bigdata/zlin/PanCancer_ICI/data/HNSC_Luoma/' ,c(files_scrna_pre, files_scrna_post)), Read10X_h5)
+clin_df <- readxl::read_xlsx('/bigdata/zlin/PanCancer_ICI/data/HNSC_Luoma/1-s2.0-S0092867422007231-mmc1.xlsx') |> 
   filter(`Pat. ID` %in% pt_rna) |> 
   tibble::column_to_rownames(var = 'Pat. ID')
 clin_df_dup <- clin_df
@@ -1290,8 +1291,8 @@ seu_list <- lapply(seu_list, function(seu){
   return(CreateSeuratObject(counts = seu@assays$RNA$counts, meta.data = seu@meta.data))
 })
 
-qsave(seu_list, file = '/bigdata/zlin/Melanoma_meta/data/HNSC_Luoma/list.qs')
-seu_list <- qread('/bigdata/zlin/Melanoma_meta/data/HNSC_Luoma/list.qs')
+qsave(seu_list, file = '/bigdata/zlin/PanCancer_ICI/data/HNSC_Luoma/list.qs')
+seu_list <- qread('/bigdata/zlin/PanCancer_ICI/data/HNSC_Luoma/list.qs')
 
 # # check sample quality
 # df <- data.frame(
@@ -1317,7 +1318,7 @@ seu$modality <- ifelse(seu$treatment == 'aPD1+CTLA4', 'Dual', 'Mono')
 # pt_tcr <- str_extract(files_tcr_pre, pattern)
 # combined_pattern <- paste(paste0(pt_tcr, '_post-Tx_TCR_sc_tumor'), collapse = "|")
 # files_tcr_post <- files[str_detect(files, combined_pattern)]
-# contig_list <- purrr::map(paste0('/bigdata/zlin/Melanoma_meta/data/HNSC_Luoma/' ,c(files_tcr_pre, files_tcr_post)), read.csv)
+# contig_list <- purrr::map(paste0('/bigdata/zlin/PanCancer_ICI/data/HNSC_Luoma/' ,c(files_tcr_pre, files_tcr_post)), read.csv)
 # combined <- combineTCR(contig_list,
 #                        samples = c(paste0(pt_tcr, '_pre'), paste0(pt_tcr, '_post')),
 #                        ID = rep(pt_tcr,2), cells ="T-AB", removeNA = TRUE, removeMulti = TRUE)
@@ -1370,11 +1371,11 @@ seu$patient <- paste0(seu$dataset, '_', seu$patient)
 seu$sample <- paste0(seu$dataset, '_', seu$sample)
 seu$res_metric[seu$patient == 'HNSC_Luoma_P18'] <- 'Pathology'
 seu <- CreateSeuratObject(counts = seu@assays$RNA$counts, meta.data = seu@meta.data)
-qsave(seu, file = '/bigdata/zlin/Melanoma_meta/data/HNSC_Luoma/seu_r1.qs')
-seu <- qread('/bigdata/zlin/Melanoma_meta/data/HNSC_Luoma/seu_r1.qs')
+qsave(seu, file = '/bigdata/zlin/PanCancer_ICI/data/HNSC_Luoma/seu_r1.qs')
+seu <- qread('/bigdata/zlin/PanCancer_ICI/data/HNSC_Luoma/seu_r1.qs')
 
 # PCa_Hawley
-seu <- readRDS('/bigdata/zlin/Melanoma_meta/data/PCa_Hawley/primecut.integrated.geneexp.seurat.rds')
+seu <- readRDS('/bigdata/zlin/PanCancer_ICI/data/PCa_Hawley/primecut.integrated.geneexp.seurat.rds')
 seu <- CreateSeuratObject(counts = seu@assays$RNA$counts, meta.data = seu@meta.data)
 seu <- subset(seu, subset = patient %in% c('Patient1', 'Patient7'))
 seu$dataset <- 'PCa_Hawley'
@@ -1437,22 +1438,22 @@ seu$celltype_major[seu$scGate_multi == 'CD8T' & seu$celltype_major == 'unknown']
 DimPlot(seu, group.by = 'celltype_major', cols = getPalette(length(unique(seu$seurat_clusters)))) /
   DotPlot(seu, group.by = 'celltype_major', features = genes_to_check) + RotatedAxis()
 seu <- subset(seu, subset = (celltype_major %in% c('unknown','Neutrophils')) | (scGate_multi == 'Multi'), invert = T)
-qsave(seu, file = '/bigdata/zlin/Melanoma_meta/data/PCa_Hawley/seu_r1.qs')
-seu <- qread('/bigdata/zlin/Melanoma_meta/data/PCa_Hawley/seu_r1.qs')
+qsave(seu, file = '/bigdata/zlin/PanCancer_ICI/data/PCa_Hawley/seu_r1.qs')
+seu <- qread('/bigdata/zlin/PanCancer_ICI/data/PCa_Hawley/seu_r1.qs')
 
 # TNBC_Shiao 
 # CD45+
-sce <- dior::read_h5(file = "/bigdata/zlin/Melanoma_meta/data/TNBC_Shiao/adata_cd45n.h5", target.object = "singlecellexperiment")
-metadata <- read.csv(file = "/bigdata/zlin/Melanoma_meta/data/TNBC_Shiao/obs_cd45n.csv", row.names = 1) |> select(batch, cohort, treatment, response_group)
+sce <- dior::read_h5(file = "/bigdata/zlin/PanCancer_ICI/data/TNBC_Shiao/adata_cd45n.h5", target.object = "singlecellexperiment")
+metadata <- read.csv(file = "/bigdata/zlin/PanCancer_ICI/data/TNBC_Shiao/obs_cd45n.csv", row.names = 1) |> select(batch, cohort, treatment, response_group)
 seu <- CreateSeuratObject(counts = assay(sce, "X"), meta.data = metadata)
-qsave(seu, file = "/bigdata/zlin/Melanoma_meta/data/TNBC_Shiao/seu_cd45n.qs")
+qsave(seu, file = "/bigdata/zlin/PanCancer_ICI/data/TNBC_Shiao/seu_cd45n.qs")
 # CD45-
-sce <- dior::read_h5(file = "/bigdata/zlin/Melanoma_meta/data/TNBC_Shiao/adata_cd45p.h5", target.object = "singlecellexperiment")
-metadata <- read.csv(file = "/bigdata/zlin/Melanoma_meta/data/TNBC_Shiao/obs_cd45p.csv", row.names = 1) |> select(batch, CD45_enrich, batch_num, cohort, pCR, cleared_nodes, treatment, patient_treatment, combined_tcr)
+sce <- dior::read_h5(file = "/bigdata/zlin/PanCancer_ICI/data/TNBC_Shiao/adata_cd45p.h5", target.object = "singlecellexperiment")
+metadata <- read.csv(file = "/bigdata/zlin/PanCancer_ICI/data/TNBC_Shiao/obs_cd45p.csv", row.names = 1) |> select(batch, CD45_enrich, batch_num, cohort, pCR, cleared_nodes, treatment, patient_treatment, combined_tcr)
 seu <- CreateSeuratObject(counts = assay(sce, "X"), meta.data = metadata)
-qsave(seu, file = "/bigdata/zlin/Melanoma_meta/data/TNBC_Shiao/seu_cd45p.qs")
+qsave(seu, file = "/bigdata/zlin/PanCancer_ICI/data/TNBC_Shiao/seu_cd45p.qs")
 # 
-seu <- qread("/bigdata/zlin/Melanoma_meta/data/TNBC_Shiao/seu_cd45p.qs")
+seu <- qread("/bigdata/zlin/PanCancer_ICI/data/TNBC_Shiao/seu_cd45p.qs")
 seu$response <- ifelse(seu$pCR == 'NR', 'NR', 'RE')
 seu$patient <- seu$cohort
 seu$dataset <- 'TNBC_Shiao'
@@ -1497,7 +1498,7 @@ seu[['celltype_bped_fine']] <- pred_bped_fine$pruned.labels
 seu$celltype_bped_main[is.na(seu$celltype_bped_main)] <- 'unknown'
 seu$celltype_bped_fine[is.na(seu$celltype_bped_fine)] <- 'unknown'
 seu$scGate_multi[is.na(seu$scGate_multi)] <- 'unknown'
-qsave(seu, '/bigdata/zlin/Melanoma_meta/data/TNBC_Shiao/seu_r1_processing.qs')
+qsave(seu, '/bigdata/zlin/PanCancer_ICI/data/TNBC_Shiao/seu_r1_processing.qs')
 genes_to_check = list(c('CD3D', 'CD3E', 'CD4', 'CD8A', 'CD8B'), # T cells 'CD8B'
                       c('KLRD1','KLRB1', 'KLRC1', 'NCAM1'), # NK cells 'KLRB1', 'KLRC1', 'CD16', 'CD56', 'CD11b', 'CD11c'
                       c('CD79A','CD19', 'MS4A1'),  # B cells 
@@ -1532,53 +1533,157 @@ pt_rm <- as.data.frame.matrix(table(seu$patient, seu$time_point)) |> filter(Post
 seu <- subset(seu, subset = patient %in% pt_rm, invert = T)
 seu <- subset(seu, subset = patient %in% c('Patient03T1', 'Patient03T2'), invert = T)
 seu <- CreateSeuratObject(counts = seu@assays$RNA$counts, meta.data = seu@meta.data)
-qsave(seu, file = '/bigdata/zlin/Melanoma_meta/data/TNBC_Shiao/seu_r1.qs')
-seu <- qread('/bigdata/zlin/Melanoma_meta/data/TNBC_Shiao/seu_r1.qs')
+qsave(seu, file = '/bigdata/zlin/PanCancer_ICI/data/TNBC_Shiao/seu_r1.qs')
+seu <- qread('/bigdata/zlin/PanCancer_ICI/data/TNBC_Shiao/seu_r1.qs')
 
-# ESCC_Ji
-dir <- '/bigdata/zlin/Melanoma_meta/data/OMIX005710/'
-files <- list.files(dir)[-1]
-list_seu <- lapply(c(paste0(dir, files)), function(file){
-  print(file)
-  count_matrix <- Read10X(file)
-  seu <- CreateSeuratObject(counts = count_matrix, min.features = 200)
+# CRC_Chen
+count_matrix <- Read10X('/bigdata/zlin/PanCancer_ICI/data/CRC_Chen')
+metadata <- read.table('/bigdata/zlin/PanCancer_ICI/data/CRC_Chen/CRC-ICB_metadata.txt.gz')
+metadata$time_point <- str_split(metadata$Ident, '-', simplify = T)[,3]
+metadata$interval[metadata$Patient == 'P01'] <- 26
+metadata$interval[metadata$Patient == 'P02'] <- 20
+metadata$interval[metadata$Patient == 'P03'] <- 106
+metadata$interval[metadata$Patient == 'P04'] <- 21
+metadata$interval[metadata$Patient == 'P05'] <- 110
+metadata$interval[metadata$Patient == 'P08'] <- 21
+metadata$interval[metadata$Patient == 'P09'] <- 110
+metadata$interval[metadata$Patient == 'P11'] <- 72
+metadata$interval[metadata$Patient == 'P12'] <- 29
+metadata$interval[metadata$Patient == 'P14'] <- 62
+metadata$interval[metadata$Patient == 'P15'] <- 65
+metadata$interval[metadata$Patient == 'P16'] <- 87
+metadata$interval[metadata$Patient == 'P17'] <- 28
+metadata$interval[metadata$Patient == 'P18'] <- 96
+metadata$interval[metadata$Patient == 'P19'] <- 71
+metadata$interval[metadata$Patient == 'P20'] <- 41
+metadata$interval[metadata$Patient == 'P21'] <- 100
+metadata$interval[metadata$Patient == 'P22'] <- 40
+metadata$interval[metadata$Patient == 'P23'] <- 51
+metadata$interval[metadata$Patient == 'P24'] <- 68
+metadata$interval[metadata$Patient == 'P25'] <- 57
+metadata$interval[metadata$Patient == 'P26'] <- 60
+metadata$time_point[metadata$time_point == 'I'] <- 'Pre'
+metadata$time_point[metadata$time_point == 'II'] <- 'On'
+metadata$time_point[metadata$Patient == 'P21' & metadata$time_point == 'III'] <- 'On'
+clin_info <- readxl::read_xlsx('/bigdata/zlin/PanCancer_ICI/data/CRC_Chen/1-s2.0-S1535610824002344-mmc2.xlsx', sheet = 1, skip = 1)
+metadata <- metadata |> 
+  rownames_to_column(var = 'cell') |> 
+  left_join(clin_info, by = join_by('Patient' == `Patient ID`)) |> 
+  column_to_rownames(var = 'cell')
+seu <- CreateSeuratObject(counts = count_matrix, meta.data = metadata)
+seu <- subset(seu, subset = Tissue == 'Tumor' & time_point %in% c('Pre', 'On'))
+seu <- subset(seu, subset = Ident != 'CRC01-T2-II')
+seu$dataset <- 'CRC_Chen'
+seu$patient <- seu$Patient
+seu$patient <- paste0(seu$dataset, '_', seu$patient)
+seu$sample <- paste0(seu$patient, '_', seu$time_point)
+seu$treatment <- seu$`Treatment Regimen`
+seu$treatment <- ifelse(str_detect(seu$treatment, 'CapeOx'), 'aPD1+Chemo', 'aPD1')
+seu$modality <- 'Mono'
+seu$res_metric <- 'iRECIST+pathology'
+seu$response <- ifelse(seu$Response == 'CR', 'RE', 'NR')
+seu$cancertype <- 'CRC'
+seu$percent_mito <- PercentageFeatureSet(seu, pattern = "^MT-")
+seu$percent_ribo <- PercentageFeatureSet(seu, pattern = "^RP[SL]")
+seu$prior <- 'No'
+seu$prior[seu$patient == 'P02'] <- 'Yes'
+
+seu_list <- SplitObject(seu, split.by = 'sample')
+seu_list <- lapply(seu_list, function(seu){
+  print(unique(seu$sample))
   seu$percent_mito <- PercentageFeatureSet(seu, pattern = "^MT-")
-  seu <- subset(seu, subset = percent_mito<=50 & nFeature_RNA < quantile(seu$nFeature_RNA, probs = 0.98) & nCount_RNA < quantile(seu$nCount_RNA, probs = 0.98))
-  seu <- seu[rowSums(seu@assays$RNA$counts > 0) >= 5,]
+  seu$percent_ribo <- PercentageFeatureSet(seu, pattern = "^RP[SL]")
+  seu <- seu |> NormalizeData() |>
+    FindVariableFeatures() |>
+    ScaleData(vars.to.regress=c('nCount_RNA')) |>
+    RunPCA() |>
+    RunUMAP(dims = 1:20)
+  # identify doublets
+  # scDblFinder
+  sce <- as.SingleCellExperiment(seu)
+  sce <- scDblFinder(sce, dbr.sd=1)
+  seu[['scDblFinder.class']] <- sce$scDblFinder.class
+  # DoubletFinder
+  sweep.list <- paramSweep_v5(seu, PCs = 1:10, sct = FALSE)
+  sweep.stats <- summarizeSweep(sweep.list, GT = FALSE)
+  bcmvn <- find.pK(sweep.stats)
+  pK <- bcmvn |>
+    arrange(desc(BCmetric))
+  pK <- pK[1, 'pK']
+  pK <- as.numeric(levels(pK[[1]]))[pK[[1]]]
+  nExp <- round(ncol(seu) * 0.08)
+  seu <- doubletFinder_v5(seu, pN = 0.25, pK = pK, nExp = nExp, PCs = 1:10)
+  seu[['DoubletFinder.class']] <- seu@meta.data[, colnames(seu@meta.data)[grepl("DF.classification", colnames(seu@meta.data))]]
+  seu[[colnames(seu@meta.data)[grepl("DF.classification", colnames(seu@meta.data))]]] <- NULL
+  seu[[colnames(seu@meta.data)[grepl("pANN", colnames(seu@meta.data))]]] <- NULL
+  seu[['singlet']] <- ifelse(seu$scDblFinder.class=='doublet' & seu$DoubletFinder.class=='Doublet', 'no', 'yes')
+  # filter low-quality cells and doublets
+  seu <- subset(seu, subset = nFeature_RNA > 200 & nFeature_RNA < 6000 & percent_mito < 20 & singlet =='yes')
+  seu <- StandardizeGeneSymbols(seu, slot = 'counts', EnsemblGeneTable=EnsemblGeneTable.Hs)
+  seu <- seu%>%
+    NormalizeData() |>
+    FindVariableFeatures() |> 
+    CellCycleScoring(s.features = s.genes, g2m.features = g2m.genes)
+  seu$CC.Difference <- seu$S.Score - seu$G2M.Score
+  # Preliminary annotation
+  pred_bped_main <- SingleR(test = as.SingleCellExperiment(seu), ref = bped, labels = bped$label.main, BPPARAM=MulticoreParam(30))
+  seu[['celltype_bped_main']] <- pred_bped_main$pruned.labels
+  pred_bped_fine <- SingleR(test = as.SingleCellExperiment(seu), ref = bped, labels = bped$label.fine, BPPARAM=MulticoreParam(30))
+  seu[['celltype_bped_fine']] <- pred_bped_fine$pruned.labels
+  # scGate
+  seu <- scGate(seu, model = scGate_models_DB$human$TME_HiRes, ncores = 30)
+  seu$scGate_multi[is.na(seu$scGate_multi)] <- 'unknown'
+  seu$celltype_bped_main[is.na(seu$celltype_bped_main)] <- 'unknown'
+  seu$celltype_bped_fine[is.na(seu$celltype_bped_fine)] <- 'unknown'
   return(seu)
 })
+df <- data.frame(
+  nfeature = sapply(seu_list, function(seu_obj){nfeature <- sum(Matrix::rowSums(seu_obj@assays$RNA$counts>0)>3)
+  return(nfeature)}),
+  ncell = sapply(seu_list, function(seu_obj){ncell <- ncol(seu_obj)
+  return(ncell)})
+)
+seu <- merge(x=seu_list[[1]], y=seu_list[2:length(seu_list)], add.cell.ids = names(seu_list))
+seu <- CreateSeuratObject(counts = seu@assays$RNA@layers$counts, meta.data = seu@meta.data)
 
-qc <- readxl::read_excel('/bigdata/zlin/Melanoma_meta/data/OMIX005710/13073_2024_1320_MOESM2_ESM.xlsx')
-qc$pt <- str_split(qc$`Sample ID`, '_', simplify = T)[,1]
-qc$tissue <- str_split(qc$`Sample ID`, '_', simplify = T)[,2]
-qc$time_point <- str_split(qc$`Sample ID`, '_', simplify = T)[,3]
-qc <- qc |> 
-  filter(tissue == 'T') |> 
-  group_by(pt) |> 
-  mutate(n = n()) |> 
-  filter(n == 2) |> 
-  arrange(desc(`Cell count`))
-
-list_summary <- lapply(list_seu, function(seu){
-  qc_sample <- c()
-  qc_sample[1] <- dim(seu)[2]
-  qc_sample[2] <- sum(seu$nCount_RNA)
-  qc_sample[3] <- median(seu$nCount_RNA)
-  qc_sample[4] <- median(seu$nFeature_RNA)
-  return(qc_sample)
-})
-
-df <- do.call(rbind, list_summary) |> data.frame() |> arrange(desc(X1))
-df$sample <- 'unknown'
-df$sample[2] <- 'P19_T_B'
-df$sample[13] <- 'P19_T_A'
-df$sample[33] <- 'P6_T_A'
-df$sample[20] <- 'P18_T_A'
-df$sample[24] <- 'P6_T_B'
-df$sample[6] <- 'P18_T_B'
-df$sample[29] <- 'P16_T_A'
-df$sample[] <- 'P16_T_B'
-df$sample[1] <- 'P21_T_B'
-
-
+seu <- seu |> 
+  NormalizeData() |>
+  FindVariableFeatures() |>
+  ScaleData() |> 
+  RunPCA(verbose=FALSE) |> 
+  RunHarmony(group.by.vars = "sample") |> 
+  RunUMAP(reduction = "harmony", dims = 1:20) |>  
+  FindNeighbors(reduction = "harmony", dims = 1:20) |> FindClusters()
+qsave(seu, '/bigdata/zlin/PanCancer_ICI/data/CRC_Chen/processing.qs')
+seu <- qread('/bigdata/zlin/PanCancer_ICI/data/CRC_Chen/processing.qs')
+genes_to_check = list(c('CD3D', 'CD3E', 'CD4', 'CD8A', 'CD8B'), # T cells 'CD8B'
+                      c('KLRD1','KLRB1', 'KLRC1', 'NCAM1'), # NK cells 'KLRB1', 'KLRC1', 'CD16', 'CD56', 'CD11b', 'CD11c'
+                      c('CD79A','CD19', 'MS4A1'),  # B cells 
+                      c('CD27','CD38','JCHAIN'), # Plasma cells 
+                      c('LILRA4','IL3RA','PLD4','SELL'),
+                      c('KIT','TPSAB1','CPA3'),
+                      c('CLEC9A','FCER1A','LAMP3'), 
+                      c('CD68', 'LYZ', 'CD14'),  
+                      c('COL3A1','FAP', 'COL1A1','ATCA2'), 
+                      c('PECAM1','VWF', 'ENG'), 
+                      c('KRT15','KRT17','EPCAM'),
+                      c('MKI67')
+)
+names(genes_to_check) <- c('T','NK','B','Plasma','pDC','Mast','cDC','Mo/Mac','Fibro','Endo','Epi','Proliferating')
+DotPlot(seu, group.by = 'seurat_clusters', features = genes_to_check) + RotatedAxis()
+DotPlot(seu, group.by = 'celltype_bped_main', features = genes_to_check) + RotatedAxis()
+DotPlot(seu, group.by = 'scGate_multi', features = genes_to_check) + RotatedAxis()
+table(seu$celltype_bped_main, seu$scGate_multi)
+seu$celltype_major <- seu$celltype_bped_main
+seu$celltype_major[seu$scGate_multi == 'Mast'] <- 'Mast'
+seu$celltype_major[seu$scGate_multi == 'PlasmaCell' & seu$celltype_major == 'B-cells'] <- 'Plasma'
+seu$celltype_major[seu$scGate_multi == 'Multi'] <- 'Multi'
+seu$celltype_major[seu$seurat_clusters == 19] <- 'pDC'
+DotPlot(seu, group.by = 'celltype_major', features = genes_to_check) + RotatedAxis()
+DimPlot(seu, group.by = 'celltype_major', cols = getPalette(length(unique(seu$seurat_clusters)))) /
+  DotPlot(seu, group.by = 'celltype_major', features = genes_to_check) + RotatedAxis()
+table(seu$celltype_major)
+seu <- subset(seu, subset = (celltype_major %in% c('unknown','Melanocytes','Neutrophils','Multi')), invert = T)
+seu <- CreateSeuratObject(counts = GetAssayData(seu, assay = 'RNA', slot = 'counts'), meta.data = seu@meta.data)
+qsave(seu, file = '/bigdata/zlin/PanCancer_ICI/data/CRC_Chen/seu_r1.qs')
 

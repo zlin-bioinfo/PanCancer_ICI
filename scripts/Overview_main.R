@@ -3,7 +3,7 @@ pkgs <- c('tidyr','plyr','dplyr','stringr','ggsci','patchwork','ggplot2','dittoS
 unlist(lapply(pkgs, function(x) require(package = x,  character.only = TRUE, quietly = TRUE, warn.conflicts = FALSE)))
 options(warn = -1)
 
-meta_patient <- read.csv('/bigdata/zlin/Melanoma_meta/tables/meta_patient.csv')
+meta_patient <- read.csv('/bigdata/zlin/PanCancer_ICI/tables/meta_patient.csv')
 df <- meta_patient |> 
   dplyr::mutate(cancertype = factor(cancertype, levels = c("SKCM", "BCC", "SCC", "TNBC", "ER+BC", "HER2+BC", "HNSC", "NSCLC", "PCa", "CRC")),
          response = factor(response, levels = c('RE', 'NR'))) |> 
@@ -90,9 +90,9 @@ p2 <- df |>
   geom_hline(yintercept = 21, linetype = 'dashed') + 
   coord_flip() 
 p1+p2+plot_layout(widths = c(0.2, 0.6, 1.2), ncol = 2) 
-ggsave('/bigdata/zlin/Melanoma_meta/figures/dist_1.pdf', height = 12, width = 8)
+ggsave('/bigdata/zlin/PanCancer_ICI/figures/dist_1.pdf', height = 12, width = 8)
 
-meta_int <- read.csv('/bigdata/zlin/Melanoma_meta/tables/meta_int.csv') 
+meta_int <- read.csv('/bigdata/zlin/PanCancer_ICI/tables/meta_int.csv') 
 meta_int$celltype_main[str_detect(meta_int$celltype_r2, 'CD4')] <- 'CD4+T'
 meta_int$celltype_main[str_detect(meta_int$celltype_r2, 'CD8')] <- 'CD8+T'
 meta_int$celltype_main[meta_int$celltype_main == 'T'] <- 'CD8+T'
@@ -105,7 +105,7 @@ metadata <- meta_int |> group_by(sample) |>
   dplyr::mutate(freq_main = count_main/count_sample) |> 
   distinct(sample, celltype_main, .keep_all = T)
 metadata <- meta_int[nrow(meta_int):1, ]
-metadata$time_point <- factor(metadata$time_point, levels = c('Pre','Post'))
+metadata$time_point <- factor(metadata$time_point, levels = c('Pre','On'))
 
 colors <- c('CD4+T' = '#E31A1C',
             'CD8+T' = '#1F78B4',
@@ -131,10 +131,10 @@ metadata |>
         legend.position = "bottom",
         legend.key.size = unit(0.3, 'cm'))
 
-ggsave('/bigdata/zlin/Melanoma_meta/figures/dist_2.png', height = 12, width = 6)
+ggsave('/bigdata/zlin/PanCancer_ICI/figures/dist_2.png', height = 12, width = 6)
 
 # Change at main level
-meta_int <- read.csv('/bigdata/zlin/Melanoma_meta/tables/meta_int.csv')
+meta_int <- read.csv('/bigdata/zlin/PanCancer_ICI/tables/meta_int.csv')
 meta_int$celltype_main[str_detect(meta_int$celltype_r2, 'CD4')] <- 'CD4+T'
 meta_int$celltype_main[str_detect(meta_int$celltype_r2, 'CD8')] <- 'CD8+T'
 meta_int$celltype_main[meta_int$celltype_main == 'T'] <- 'CD8+T'
@@ -151,7 +151,7 @@ uni_lmer <- function(meta_int){
     distinct(celltype_main, sample, .keep_all = T) |> 
     select(freq_main, dataset, response, modality, int_cat, patient, time_point, celltype_main) |> 
     pivot_wider(values_from = freq_main, names_from = time_point, values_fill = 0) |> 
-    pivot_longer(cols = c('Pre', 'Post'), names_to = 'time_point', values_to = 'freq_main') |> 
+    pivot_longer(cols = c('Pre', 'On'), names_to = 'time_point', values_to = 'freq_main') |> 
     group_by(celltype_main) |> 
     dplyr::mutate(freq_main_scale = scale(freq_main)) |> 
     ungroup()
@@ -189,7 +189,7 @@ res_lmer <- uni_lmer(meta_int); res_lmer
 res_lmer <- res_lmer |> arrange(dplyr::desc(Estimate))
 # res_lmer$CI_lower[res_lmer$CI_lower < -1] <- -1
 # res_lmer$CI_upper[res_lmer$CI_upper > 0.5] <- 0.5
-pdf(paste0('/bigdata/zlin/Melanoma_meta/figures/Change/uni_lmer_main.pdf'), height = 4, width = 4)
+pdf(paste0('/bigdata/zlin/PanCancer_ICI/figures/Change/uni_lmer_main.pdf'), height = 4, width = 4)
 p <- ggplot(res_lmer, aes(x= factor(Celltypes, levels = rev(res_lmer$Celltypes)), y=Estimate, ymin=CI_lower, ymax=CI_upper)) +
   # ggplot(res_lmer, aes(x= factor(Celltypes, levels = rev(res_lmer$Celltypes)), y=Estimate, ymin=CI_lower, ymax=CI_upper, size = -log10(pValue))) +
   geom_linerange(size=1, position=position_dodge(width = 0.5)) +
@@ -224,5 +224,5 @@ grid.segments(
   arrow = arrow(type = "open", length = unit(0.05, "inches"))
 )
 grid.text("Pre", x = unit(x1, "npc"), y = unit(y_text, "npc"), gp = gpar(fontsize = 8))
-grid.text("Post", x = unit(x2, "npc"), y = unit(y_text, "npc"), gp = gpar(fontsize = 8))
+grid.text("On", x = unit(x2, "npc"), y = unit(y_text, "npc"), gp = gpar(fontsize = 8))
 dev.off()

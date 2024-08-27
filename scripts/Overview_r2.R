@@ -12,7 +12,6 @@ t <- c('CD4_Naive','CD4_Tm_CREM-','CD4_Tm_AREG','CD4_Tm_TIMP1','CD4_Tm_CAPG','CD
        'CD8_Tex_ISG15', 'CD8_Temra_CX3CR1', 'CD8_NK-like', 
        'MAIT', 'gdT')
 nk <- c('NK_CD56loCD16hi', 'NK_CD56hiCD16lo')
-# bplasma <- c('Naive B', 'Memory IgM+ B', 'Memory IgM- B', 'GC-like B', 'Plasmablast', 'Plasma')
 bplasma <- c('B_Naive', 'B_ISG15', 'B_HSP', 'B_MT2A', 'ACB_EGR1', 'ACB_NR4A2', 'ACB_CCR7', 'B_Memory', 'B_AtM',
              'GCB_Pre', 'GCB_SUGCT', 'GCB_LMO2', 'GCB_Prolif', 'Plasmablast', 'Plasma_cell')
 mye <- c('Mast','pDC','cDC1', 
@@ -20,71 +19,72 @@ mye <- c('Mast','pDC','cDC1',
          'Mono_CD14', 'Mono_CD14CD16', 'Mono_CD16',
          'Macro_IL1B', 'Macro_INHBA', 'Macro_SPP1', 'Macro_FN1', 'Macro_ISG15', 
          'Macro_TNF', 'Macro_LYVE1', 'Macro_C1QC', 'Macro_TREM2')
-nonimmune <- c('EC_lymphatic','EC_vascular','EndMT','CAF_inflammatory', 'CAF_adipogenic', 'CAF_PN', 'CAF_AP', 'Myofibroblast')
-meta_int <- read.csv('/bigdata/zlin/Melanoma_meta/tables/meta_int.csv') 
+nonimmune <- c('Endo_lymphatic','Endo_artery','Endo_capillary','Endo_tip','Endo_vein',
+               'EndMT','CAF_inflammatory', 'CAF_adipogenic', 'CAF_PN', 'CAF_AP', 'Myofibroblast')
+meta_int <- read.csv('/bigdata/zlin/PanCancer_ICI/tables/meta_int.csv') 
 meta_int |> 
   distinct(celltype_r2, sample, .keep_all = T) |> 
   select(freq_r2_comp, dataset, response, modality, int_cat, patient, time_point, celltype_r2) |> 
   filter(celltype_r2 %in% t[grepl('CD4', t)]) |> 
   ggplot(aes(x = reorder(celltype_r2, freq_r2_comp, FUN = median, decreasing = T), y = freq_r2_comp)) + 
-  geom_jitter(size = 0.1) + geom_boxplot(aes(fill = celltype_r2), alpha = 0.2, show.legend = F) + 
+  geom_jitter(size = 0.1) + geom_boxplot(aes(fill = celltype_r2), alpha = 0.4, show.legend = F) + 
   theme_minimal() + theme(plot.title = element_text(hjust = 0.5),
                           axis.text.x = element_text(size = 8, colour = 'black')) + 
   ggtitle('CD4+T Cells') +
   Seurat::RotatedAxis() + xlab('') + ylab('Relative Frequency')
-ggsave('/bigdata/zlin/Melanoma_meta/figures/Abundance/cd4t.pdf', width = 8, height = 5)
+ggsave('/bigdata/zlin/PanCancer_ICI/figures/Abundance/cd4t.pdf', width = 8, height = 5)
 
 meta_int |> 
   distinct(celltype_r2, sample, .keep_all = T) |> 
   select(freq_r2_comp, dataset, response, modality, int_cat, patient, time_point, celltype_r2) |> 
   filter(celltype_r2 %in% t[!grepl('CD4', t)]) |> 
   ggplot(aes(x = reorder(celltype_r2, freq_r2_comp, FUN = median, decreasing = T), y = freq_r2_comp)) + 
-  geom_jitter(size = 0.1) + geom_boxplot(aes(fill = celltype_r2), alpha = 0.2, show.legend = F) + 
+  geom_jitter(size = 0.1) + geom_boxplot(aes(fill = celltype_r2), alpha = 0.4, show.legend = F) + 
   theme_minimal() + theme(plot.title = element_text(hjust = 0.5),
                           axis.text.x = element_text(size = 8, colour = 'black')) + 
   ggtitle('CD8+T&NK Cells') +
   Seurat::RotatedAxis() + xlab('') + ylab('Relative Frequency')
-ggsave('/bigdata/zlin/Melanoma_meta/figures/Abundance/cd8t.pdf', width = 7.5, height = 5)
+ggsave('/bigdata/zlin/PanCancer_ICI/figures/Abundance/cd8t.pdf', width = 7.5, height = 5)
 
 meta_int |> 
   distinct(celltype_r2, sample, .keep_all = T) |> 
   select(freq_r2_comp, dataset, response, modality, int_cat, patient, time_point, celltype_r2) |> 
   filter(celltype_r2 %in% mye) |> 
   ggplot(aes(x = reorder(celltype_r2, freq_r2_comp, FUN = median, decreasing = T), y = freq_r2_comp)) + 
-  geom_jitter(size = 0.1) + geom_boxplot(aes(fill = celltype_r2), alpha = 0.2, show.legend = F) + 
+  geom_jitter(size = 0.1) + geom_boxplot(aes(fill = celltype_r2), alpha = 0.4, show.legend = F) + 
   theme_minimal() + theme(plot.title = element_text(hjust = 0.5),
                           axis.text.x = element_text(size = 8, colour = 'black')) + 
   ggtitle('Myeloid Cells') +
   Seurat::RotatedAxis() + xlab('') + ylab('Relative Frequency')
-ggsave('/bigdata/zlin/Melanoma_meta/figures/Abundance/mye.pdf', width = 8, height = 5)
+ggsave('/bigdata/zlin/PanCancer_ICI/figures/Abundance/mye.pdf', width = 8, height = 5)
 
 meta_int |> 
   distinct(celltype_r2, sample, .keep_all = T) |> 
   select(freq_r2_comp, dataset, response, modality, int_cat, patient, time_point, celltype_r2) |> 
   filter(celltype_r2 %in% bplasma) |> 
   ggplot(aes(x = reorder(celltype_r2, freq_r2_comp, FUN = median, decreasing = T), y = freq_r2_comp)) + 
-  geom_jitter(size = 0.1) + geom_boxplot(aes(fill = celltype_r2), alpha = 0.2, show.legend = F) + 
+  geom_jitter(size = 0.1) + geom_boxplot(aes(fill = celltype_r2), alpha = 0.4, show.legend = F) + 
   theme_minimal() + theme(plot.title = element_text(hjust = 0.5),
                           axis.text.x = element_text(size = 8, colour = 'black')) + 
   ggtitle('B Lymphocytes') +
   Seurat::RotatedAxis() + xlab('') + ylab('Relative Frequency')
-ggsave('/bigdata/zlin/Melanoma_meta/figures/Abundance/bplasma.pdf', width = 8, height = 5)
+ggsave('/bigdata/zlin/PanCancer_ICI/figures/Abundance/bplasma.pdf', width = 8, height = 5)
 
 meta_int |> 
   distinct(celltype_r2, sample, .keep_all = T) |> 
   select(freq_r2_comp, dataset, response, modality, int_cat, patient, time_point, celltype_r2) |> 
   filter(celltype_r2 %in% nonimmune) |> 
   ggplot(aes(x = reorder(celltype_r2, freq_r2_comp, FUN = median, decreasing = T), y = freq_r2_comp)) + 
-  geom_jitter(size = 0.1) + geom_boxplot(aes(fill = celltype_r2), alpha = 0.2, show.legend = F) + 
+  geom_jitter(size = 0.1) + geom_boxplot(aes(fill = celltype_r2), alpha = 0.4, show.legend = F) + 
   theme_minimal() + theme(plot.title = element_text(hjust = 0.5),
                           axis.text.x = element_text(size = 8, colour = 'black')) + 
   ggtitle('Non-immune') +
   Seurat::RotatedAxis() + xlab('') + ylab('Relative Frequency')
-ggsave('/bigdata/zlin/Melanoma_meta/figures/Abundance/non-immune.pdf', width = 5, height = 3.5)
+ggsave('/bigdata/zlin/PanCancer_ICI/figures/Abundance/non-immune.pdf', width = 5, height = 3.5)
 
 # Existance across dataset
-list_metadata <- qread('/bigdata/zlin/Melanoma_meta/tables/meta_list.qs')
-meta_int <- read.csv('/bigdata/zlin/Melanoma_meta/tables/meta_int.csv') 
+list_metadata <- qread('/bigdata/zlin/PanCancer_ICI/tables/meta_list.qs')
+meta_int <- read.csv('/bigdata/zlin/PanCancer_ICI/tables/meta_int.csv') 
 dist_fun <- function(list_metadata, cellstates){
   list_dist <- lapply(list_metadata, function(metadata){
     print(unique(metadata$dataset))
@@ -113,23 +113,23 @@ dist_fun <- function(list_metadata, cellstates){
 dist_t <- dist_fun(list_metadata = list_metadata, 
                    cellstates = t)
 
-dist_nk <- dist_fun(list_metadata = list_metadata[c('SKCM_Becker', 'BRCA_Bassez1', 'BRCA_Bassez2', 'TNBC_Shiao', 'TNBC_Zhang', 'BCC_Yost', 'HNSC_Franken', 'HNSC_IMCISION', 'HNSC_Luoma', 'CRC_Li','PCa_Hawley')], 
+dist_nk <- dist_fun(list_metadata = list_metadata[c('SKCM_Becker', 'BRCA_Bassez1', 'BRCA_Bassez2', 'TNBC_Shiao', 'TNBC_Zhang', 'BCC_Yost', 'HNSC_Franken', 'HNSC_IMCISION', 'HNSC_Luoma', 'CRC_Li', 'CRC_Chen', 'PCa_Hawley')], 
                     cellstates = nk)
 
-dist_bplasma <- dist_fun(list_metadata = list_metadata[c('SKCM_Becker','BRCA_Bassez1','BRCA_Bassez2','TNBC_Shiao', 'TNBC_Zhang', 'BCC_Yost', 'HNSC_Franken', 'HNSC_IMCISION', 'HNSC_Luoma', 'CRC_Li', 'PCa_Hawley')], 
+dist_bplasma <- dist_fun(list_metadata = list_metadata[c('SKCM_Becker','BRCA_Bassez1','BRCA_Bassez2','TNBC_Shiao', 'TNBC_Zhang', 'BCC_Yost', 'HNSC_Franken', 'HNSC_IMCISION', 'HNSC_Luoma', 'CRC_Li', 'CRC_Chen', 'PCa_Hawley')], 
                          cellstates =  bplasma)
 
-dist_mye <- dist_fun(list_metadata = list_metadata[c('SKCM_Becker','BRCA_Bassez1','BRCA_Bassez2','TNBC_Shiao', 'TNBC_Zhang', 'BCC_Yost', 'HNSC_Franken', 'HNSC_IMCISION', 'HNSC_Luoma', 'CRC_Li', 'PCa_Hawley')], 
+dist_mye <- dist_fun(list_metadata = list_metadata[c('SKCM_Becker','BRCA_Bassez1','BRCA_Bassez2','TNBC_Shiao', 'TNBC_Zhang', 'BCC_Yost', 'HNSC_Franken', 'HNSC_IMCISION', 'HNSC_Luoma', 'CRC_Li', 'CRC_Chen', 'PCa_Hawley')], 
                      cellstates =  mye)
 
-dist_nonimmune <- dist_fun(list_metadata = list_metadata[c('SKCM_Becker','BRCA_Bassez1','BRCA_Bassez2', 'BCC_Yost', 'HNSC_Franken', 'CRC_Li', 'PCa_Hawley')], 
+dist_nonimmune <- dist_fun(list_metadata = list_metadata[c('SKCM_Becker','BRCA_Bassez1','BRCA_Bassez2', 'BCC_Yost', 'HNSC_Franken', 'CRC_Li', 'CRC_Chen', 'PCa_Hawley')], 
                            cellstates =  nonimmune)
 
 df_dist <- Reduce(function(x, y) merge(x, y, by = "dataset", all = TRUE), list(dist_t, dist_nk, dist_bplasma, dist_mye, dist_nonimmune)) |> 
   column_to_rownames(var = 'dataset') |> 
   t() |> data.frame(check.names = F)
 df_dist[is.na(df_dist)] <- 0
-df_dist <- df_dist[, c('SKCM_Becker', 'BCC_Yost', 'SCC_Yost', 'BRCA_Bassez1', 'BRCA_Bassez2', 'TNBC_Shiao', 'TNBC_Zhang', 'HNSC_Franken', 'HNSC_IMCISION', 'HNSC_Luoma', 'CRC_Li', 'PCa_Hawley', 'NSCLC_Liu')]
+df_dist <- df_dist[, c('SKCM_Becker', 'BCC_Yost', 'SCC_Yost', 'BRCA_Bassez1', 'BRCA_Bassez2', 'TNBC_Shiao', 'TNBC_Zhang', 'HNSC_Franken', 'HNSC_IMCISION', 'HNSC_Luoma', 'CRC_Li', 'CRC_Chen', 'PCa_Hawley', 'NSCLC_Liu')]
 df_anno <- meta_int |> 
   distinct(celltype_r2, component) |> 
   mutate(component = case_when(component == 'T_NK' ~ 'T&NK',
@@ -137,7 +137,7 @@ df_anno <- meta_int |>
                                .default = component)) |> 
   mutate(component = factor(component, levels = c('T&NK', 'B&plasma', 'Myeloids', 'Non-immune'))) 
 colors = structure(c(0,1), names = c("lightgray", "#1F78B4"))
-pdf('/bigdata/zlin/Melanoma_meta/figures/dist_existing.pdf', height = 9, width = 4)
+pdf('/bigdata/zlin/PanCancer_ICI/figures/dist_existing.pdf', height = 9, width = 4)
 Heatmap(df_dist, 
         show_column_names = T, show_row_names = T,
         cluster_rows = F, cluster_columns = F, col = c("lightgray", "#1F78B4"),
@@ -155,8 +155,8 @@ Heatmap(df_dist,
 dev.off()
 
 # Heatmap for change
-meta_int <- read.csv('/bigdata/zlin/Melanoma_meta/tables/meta_int.csv') 
-pt_df <- read.csv('/bigdata/zlin/Melanoma_meta/tables/meta_patient.csv')
+meta_int <- read.csv('/bigdata/zlin/PanCancer_ICI/tables/meta_int.csv') 
+pt_df <- read.csv('/bigdata/zlin/PanCancer_ICI/tables/meta_patient.csv')
 # freq_filt <- meta_int |> 
 #   select(patient, time_point, celltype_r2, interval, cancertype, response, res_metric, treatment, prior, modality, dataset, component, count_r2) |> 
 #   distinct(patient, time_point, celltype_r2, .keep_all = T) |> 
@@ -166,9 +166,10 @@ freq_wide <- meta_int |>
   select(patient, time_point, celltype_r2, interval, cancertype, response, res_metric, treatment, prior, modality, freq_r2_comp, dataset, component) |> 
   distinct(patient, time_point, celltype_r2, .keep_all = T) |> 
   pivot_wider(values_from = freq_r2_comp, names_from = time_point, values_fill = 0) |> 
-  mutate(change = log2((Post + 0.01)/(Pre + 0.01)), diff = (Post - Pre))
-# freq_wide$pt_r2 <- paste0(freq_wide$patient, '_', freq_wide$celltype_r2)
-# freq_wide <- filter(freq_wide, pt_r2 %in% freq_filt$pt_r2)
+  mutate(change = log2((On + 0.01)/(Pre + 0.01)), diff = (On - Pre))
+freq_wide |> 
+  select(patient, celltype_r2, interval, cancertype, response, res_metric, treatment, prior, dataset, Pre, On, change) |> 
+  write.csv(file = '/bigdata/zlin/PanCancer_ICI/data/df_patient_celltype.csv', row.names = F)
 mat_change <- freq_wide |> 
   select(patient, diff, celltype_r2) |> 
   pivot_wider(values_from = diff, names_from = patient, values_fill = 0) |> 
@@ -188,11 +189,12 @@ celltype_order_r2 <- c('CD4_Naive','CD4_Tm_CREM-','CD4_Tm_AREG','CD4_Tm_TIMP1','
                        'Mono_CD14', 'Mono_CD14CD16', 'Mono_CD16',
                        'Macro_IL1B', 'Macro_INHBA', 'Macro_SPP1', 'Macro_FN1', 'Macro_ISG15', 
                        'Macro_TNF', 'Macro_LYVE1', 'Macro_C1QC', 'Macro_TREM2',
-                       'EC_lymphatic','EC_vascular','EndMT','CAF_inflammatory', 'CAF_adipogenic', 'CAF_PN', 'CAF_AP', 'Myofibroblast')
+                       'Endo_lymphatic','Endo_artery','Endo_capillary','Endo_tip','Endo_vein',
+                       'EndMT','CAF_inflammatory', 'CAF_adipogenic', 'CAF_PN', 'CAF_AP', 'Myofibroblast')
 mat_change <- mat_change[celltype_order_r2,]
 mat_change[which(rownames(mat_change) %in% 'NK_CD56loCD16hi'):which(rownames(mat_change) %in% 'Myofibroblast'),
          grepl('SCC|NSCLC', colnames(mat_change))] <- NA
-mat_change[which(rownames(mat_change) %in% 'EC_lymphatic'):which(rownames(mat_change) %in% 'Myofibroblast'),
+mat_change[which(rownames(mat_change) %in% 'Endo_lymphatic'):which(rownames(mat_change) %in% 'Myofibroblast'),
          grepl('TNBC_Shiao|TNBC_Zhang|HNSC_IMCISION|HNSC_Luoma', colnames(mat_change))] <- NA
 
 pt_df <- pt_df[match(colnames(mat_change), pt_df$patient),]
@@ -239,7 +241,7 @@ df_anno <- meta_int |>
                                .default = component)) |> 
   mutate(component = factor(component, levels = c('T&NK', 'B&plasma', 'Myeloids', 'Non-immune')))  
   
-pdf('/bigdata/zlin/Melanoma_meta/figures/Change/ht_dynamics.pdf', height = 10, width = 9)
+pdf('/bigdata/zlin/PanCancer_ICI/figures/Change/ht_dynamics.pdf', height = 10, width = 9)
 Heatmap(t(scale(t(mat_change))), na_col = 'lightgray', name = 'ΔRF (z-score)',
         row_title_gp = gpar(fontsize = 8, fontface = 'bold'),
         show_column_names = F, show_row_names = T,
@@ -257,37 +259,37 @@ Heatmap(t(scale(t(mat_change))), na_col = 'lightgray', name = 'ΔRF (z-score)',
         height = nrow(mat_change)*unit(2.5, "mm"),
         row_split = df_anno$component[match(rownames(mat_change), df_anno$celltype_r2)])
 dev.off()
-# Mean
-mat_change_mean <- freq_wide |> 
-  select(dataset, diff, celltype_r2) |> 
-  group_by(dataset,celltype_r2) |> 
-  dplyr::summarize(mean_change = mean(diff)) |> 
-  pivot_wider(values_from = mean_change, names_from = dataset, values_fill = 0) |> 
-  column_to_rownames(var = 'celltype_r2') 
-mat_change_mean <- mat_change_mean[celltype_order_r2, 
-                                   c("SKCM_Becker", "BCC_Yost", "SCC_Yost", "BRCA_Bassez1", "BRCA_Bassez2", "TNBC_Shiao", "TNBC_Zhang", "HNSC_Franken", "HNSC_IMCISION", "HNSC_Luoma", "CRC_Li", "PCa_Hawley", "NSCLC_Liu")]
-mat_change_mean[which(rownames(mat_change_mean) %in% 'NK_CD56loCD16hi'):which(rownames(mat_change_mean) %in% 'Myofibroblast'),
-           grepl('SCC|NSCLC', colnames(mat_change_mean))] <- NA
-mat_change_mean[which(rownames(mat_change_mean) %in% 'EC_lymphatic'):which(rownames(mat_change_mean) %in% 'Myofibroblast'),
-           grepl('TNBC_Shiao|TNBC_Zhang|HNSC_IMCISION|HNSC_Luoma', colnames(mat_change_mean))] <- NA
-pdf('/bigdata/zlin/Melanoma_meta/figures/Change/ht_dynamics_mean.pdf', height = 8, width = 4)
-Heatmap(t(scale(t(mat_change_mean))), na_col = 'lightgray', name = 'Mean ΔRF \n(z-score)',
-        row_title_gp = gpar(fontsize = 8, fontface = 'bold'),
-        show_column_names = T, show_row_names = T,
-        cluster_rows = F, cluster_columns = F,
-        col = colorRamp2(c(-1, 0, 1), c("#1F78B4", "white", "#E31A1C")),
-        heatmap_legend_param = list(
-          legend_direction = "horizontal", 
-          legend_width = unit(2, "cm"), at = c(-1, 0, 1),
-          legend_side = 'bottom',
-          title_position = "topcenter"),
-        column_names_gp = gpar(fontsize = 6),
-        row_names_gp = gpar(fontsize = 6),
-        # top_annotation = col_ha,
-        width = ncol(mat_change)*unit(0.3, "mm"), 
-        height = nrow(mat_change)*unit(2.5, "mm"),
-        row_split = df_anno$component[match(rownames(mat_change_mean), df_anno$celltype_r2)])
-dev.off()
+# # Mean
+# mat_change_mean <- freq_wide |> 
+#   select(dataset, diff, celltype_r2) |> 
+#   group_by(dataset,celltype_r2) |> 
+#   dplyr::summarize(mean_change = mean(diff)) |> 
+#   pivot_wider(values_from = mean_change, names_from = dataset, values_fill = 0) |> 
+#   column_to_rownames(var = 'celltype_r2') 
+# mat_change_mean <- mat_change_mean[celltype_order_r2, 
+#                                    c("SKCM_Becker", "BCC_Yost", "SCC_Yost", "BRCA_Bassez1", "BRCA_Bassez2", "TNBC_Shiao", "TNBC_Zhang", "HNSC_Franken", "HNSC_IMCISION", "HNSC_Luoma", "CRC_Li", "PCa_Hawley", "NSCLC_Liu")]
+# mat_change_mean[which(rownames(mat_change_mean) %in% 'NK_CD56loCD16hi'):which(rownames(mat_change_mean) %in% 'Myofibroblast'),
+#            grepl('SCC|NSCLC', colnames(mat_change_mean))] <- NA
+# mat_change_mean[which(rownames(mat_change_mean) %in% 'EC_lymphatic'):which(rownames(mat_change_mean) %in% 'Myofibroblast'),
+#            grepl('TNBC_Shiao|TNBC_Zhang|HNSC_IMCISION|HNSC_Luoma', colnames(mat_change_mean))] <- NA
+# pdf('/bigdata/zlin/PanCancer_ICI/figures/Change/ht_dynamics_mean.pdf', height = 8, width = 4)
+# Heatmap(t(scale(t(mat_change_mean))), na_col = 'lightgray', name = 'Mean ΔRF \n(z-score)',
+#         row_title_gp = gpar(fontsize = 8, fontface = 'bold'),
+#         show_column_names = T, show_row_names = T,
+#         cluster_rows = F, cluster_columns = F,
+#         col = colorRamp2(c(-1, 0, 1), c("#1F78B4", "white", "#E31A1C")),
+#         heatmap_legend_param = list(
+#           legend_direction = "horizontal", 
+#           legend_width = unit(2, "cm"), at = c(-1, 0, 1),
+#           legend_side = 'bottom',
+#           title_position = "topcenter"),
+#         column_names_gp = gpar(fontsize = 6),
+#         row_names_gp = gpar(fontsize = 6),
+#         # top_annotation = col_ha,
+#         width = ncol(mat_change)*unit(0.3, "mm"), 
+#         height = nrow(mat_change)*unit(2.5, "mm"),
+#         row_split = df_anno$component[match(rownames(mat_change_mean), df_anno$celltype_r2)])
+# dev.off()
 
 # Median
 mat_change_median <- freq_wide |> 
@@ -297,12 +299,12 @@ mat_change_median <- freq_wide |>
   pivot_wider(values_from = median_change, names_from = dataset, values_fill = 0) |> 
   column_to_rownames(var = 'celltype_r2') 
 mat_change_median <- mat_change_median[celltype_order_r2, 
-                                   c("SKCM_Becker", "BCC_Yost", "SCC_Yost", "BRCA_Bassez1", "BRCA_Bassez2", "TNBC_Shiao", "TNBC_Zhang", "HNSC_Franken", "HNSC_IMCISION", "HNSC_Luoma", "CRC_Li", "PCa_Hawley", "NSCLC_Liu")]
+                                   c("SKCM_Becker", "BCC_Yost", "SCC_Yost", "BRCA_Bassez1", "BRCA_Bassez2", "TNBC_Shiao", "TNBC_Zhang", "HNSC_Franken", "HNSC_IMCISION", "HNSC_Luoma", "CRC_Li", "CRC_Chen", "PCa_Hawley", "NSCLC_Liu")]
 mat_change_median[which(rownames(mat_change_median) %in% 'NK_CD56loCD16hi'):which(rownames(mat_change_median) %in% 'Myofibroblast'),
                 grepl('SCC|NSCLC', colnames(mat_change_median))] <- NA
-mat_change_median[which(rownames(mat_change_median) %in% 'EC_lymphatic'):which(rownames(mat_change_median) %in% 'Myofibroblast'),
+mat_change_median[which(rownames(mat_change_median) %in% 'Endo_lymphatic'):which(rownames(mat_change_median) %in% 'Myofibroblast'),
                 grepl('TNBC_Shiao|TNBC_Zhang|HNSC_IMCISION|HNSC_Luoma', colnames(mat_change_median))] <- NA
-pdf('/bigdata/zlin/Melanoma_meta/figures/Change/ht_dynamics_median.pdf', height = 9, width = 4.5)
+pdf('/bigdata/zlin/PanCancer_ICI/figures/Change/ht_dynamics_median.pdf', height = 9, width = 4.5)
 Heatmap(t(scale(t(mat_change_median))), na_col = 'lightgray', name = 'Median ΔRF \n(z-score)',
         row_title_gp = gpar(fontsize = 8, fontface = 'bold'),
         show_column_names = T, show_row_names = T,
@@ -323,7 +325,7 @@ Heatmap(t(scale(t(mat_change_median))), na_col = 'lightgray', name = 'Median ΔR
 dev.off()
 
 # Pre Post median
-pdf('/bigdata/zlin/Melanoma_meta/figures/Change/ht_median.pdf', height = 11, width = 6)
+pdf('/bigdata/zlin/PanCancer_ICI/figures/Change/ht_median.pdf', height = 11, width = 6)
 mat_pre_median <- freq_wide |> 
   select(dataset, Pre, celltype_r2) |> 
   group_by(dataset,celltype_r2) |> 
@@ -331,10 +333,10 @@ mat_pre_median <- freq_wide |>
   pivot_wider(values_from = median_pre, names_from = dataset, values_fill = 0) |> 
   column_to_rownames(var = 'celltype_r2') 
 mat_pre_median <- mat_pre_median[celltype_order_r2, 
-                                 c("SKCM_Becker", "BCC_Yost", "SCC_Yost", "BRCA_Bassez1", "BRCA_Bassez2", "TNBC_Shiao", "TNBC_Zhang", "HNSC_Franken", "HNSC_IMCISION", "HNSC_Luoma", "CRC_Li", "PCa_Hawley", "NSCLC_Liu")]
+                                 c("SKCM_Becker", "BCC_Yost", "SCC_Yost", "BRCA_Bassez1", "BRCA_Bassez2", "TNBC_Shiao", "TNBC_Zhang", "HNSC_Franken", "HNSC_IMCISION", "HNSC_Luoma", "CRC_Li", "CRC_Chen", "PCa_Hawley", "NSCLC_Liu")]
 mat_pre_median[which(rownames(mat_pre_median) %in% 'NK_CD56loCD16hi'):which(rownames(mat_pre_median) %in% 'Myofibroblast'),
                grepl('SCC|NSCLC', colnames(mat_pre_median))] <- NA
-mat_pre_median[which(rownames(mat_pre_median) %in% 'EC_lymphatic'):which(rownames(mat_pre_median) %in% 'Myofibroblast'),
+mat_pre_median[which(rownames(mat_pre_median) %in% 'Endo_lymphatic'):which(rownames(mat_pre_median) %in% 'Myofibroblast'),
                grepl('TNBC_Shiao|TNBC_Zhang|HNSC_IMCISION|HNSC_Luoma', colnames(mat_pre_median))] <- NA
 ht_pre <- Heatmap(t(scale(t(mat_pre_median))), na_col = 'lightgray', column_title = 'Pre',
                   column_title_gp = gpar(fontface = 'bold'),
@@ -350,16 +352,16 @@ ht_pre <- Heatmap(t(scale(t(mat_pre_median))), na_col = 'lightgray', column_titl
                   height = nrow(mat_pre_median)*unit(3, "mm"),
                   row_split = df_anno$component[match(rownames(mat_pre_median), df_anno$celltype_r2)])
 mat_post_median <- freq_wide |> 
-  select(dataset, Post, celltype_r2) |> 
+  select(dataset, On, celltype_r2) |> 
   group_by(dataset,celltype_r2) |> 
-  dplyr::summarize(median_post = median(Post)) |> 
+  dplyr::summarize(median_post = median(On)) |> 
   pivot_wider(values_from = median_post, names_from = dataset, values_fill = 0) |> 
   column_to_rownames(var = 'celltype_r2') 
 mat_post_median <- mat_post_median[celltype_order_r2, 
-                                 c("SKCM_Becker", "BCC_Yost", "SCC_Yost", "BRCA_Bassez1", "BRCA_Bassez2", "TNBC_Shiao", "TNBC_Zhang", "HNSC_Franken", "HNSC_IMCISION", "HNSC_Luoma", "CRC_Li", "PCa_Hawley", "NSCLC_Liu")]
+                                 c("SKCM_Becker", "BCC_Yost", "SCC_Yost", "BRCA_Bassez1", "BRCA_Bassez2", "TNBC_Shiao", "TNBC_Zhang", "HNSC_Franken", "HNSC_IMCISION", "HNSC_Luoma", "CRC_Li", "CRC_Chen", "PCa_Hawley", "NSCLC_Liu")]
 mat_post_median[which(rownames(mat_post_median) %in% 'NK_CD56loCD16hi'):which(rownames(mat_post_median) %in% 'Myofibroblast'),
                grepl('SCC|NSCLC', colnames(mat_post_median))] <- NA
-mat_post_median[which(rownames(mat_post_median) %in% 'EC_lymphatic'):which(rownames(mat_post_median) %in% 'Myofibroblast'),
+mat_post_median[which(rownames(mat_post_median) %in% 'Endo_lymphatic'):which(rownames(mat_post_median) %in% 'Myofibroblast'),
                grepl('TNBC_Shiao|TNBC_Zhang|HNSC_IMCISION|HNSC_Luoma', colnames(mat_post_median))] <- NA
 ht_post <- Heatmap(t(scale(t(mat_post_median))), na_col = 'lightgray', name = 'Median RF \n(z-score)', column_title = 'Post',
                    column_title_gp = gpar(fontface = 'bold'),
@@ -381,9 +383,10 @@ ht_post <- Heatmap(t(scale(t(mat_post_median))), na_col = 'lightgray', name = 'M
 ht_pre + ht_post
 dev.off()
 
+
 # Correlation of dynamic changes (co-regulatiion)
-meta_int <- read.csv('/bigdata/zlin/Melanoma_meta/tables/meta_int.csv')
-pt_df <- read.csv('/bigdata/zlin/Melanoma_meta/tables/meta_patient.csv')
+meta_int <- read.csv('/bigdata/zlin/PanCancer_ICI/tables/meta_int.csv')
+pt_df <- read.csv('/bigdata/zlin/PanCancer_ICI/tables/meta_patient.csv')
 head(meta_int)
 range(meta_int$freq_r2_comp)
 # Immune cells
@@ -408,19 +411,20 @@ freq_wide <- meta_int |>
   distinct(patient, time_point, celltype_r2, .keep_all = T) |> 
   pivot_wider(values_from = freq_r2_comp, names_from = time_point, values_fill = 0) |> 
   # filter(abs(Pre-Post) >= 3, (Pre >= 3 | Post >= 3)) |> 
-  mutate(change = log2((Post + 0.01)/(Pre + 0.01)), diff = (Post - Pre))
+  mutate(change = log2((On + 0.01)/(Pre + 0.01)), diff = (On - Pre))
 # freq_wide$pt_r2 <- paste0(freq_wide$patient, '_', freq_wide$celltype_r2)
 # freq_wide <- filter(freq_wide, pt_r2 %in% freq_filt$pt_r2)
 
 mat_change <- freq_wide |> 
-  filter(dataset != 'NSCLC_Liu', 
+  filter(!dataset %in% c('NSCLC_Liu'), 
+         !patient %in% c('BCC/SCC_Yost_su009', 'BCC/SCC_Yost_su011', 'BCC/SCC_Yost_su012', 'BCC/SCC_Yost_su014'),
          celltype_r2 %in% immune) |> 
   select(patient, diff, celltype_r2) |> 
   pivot_wider(values_from = diff, names_from = patient, values_fill = 0) |>
   column_to_rownames(var = 'celltype_r2')
 M <- cor(t(mat_change))
 testRes <- cor.mtest(t(mat_change), conf.level = 0.95)
-pdf('/bigdata/zlin/Melanoma_meta/figures/Co-regulating/freq_immune.pdf', height = 10, width = 9)
+pdf('/bigdata/zlin/PanCancer_ICI/figures/Co-regulating/freq_immune.pdf', height = 10, width = 9)
 cols <- colorRampPalette(c("#336699", "white", "#CC0000")) 
 # corrplot(M, p.mat = testRes$p, col = cols(100), tl.srt=45,
 #          tl.cex = 0.5, pch.cex = 0.6, tl.col = 'black', order = 'hclust', hclust.method = "ward.D2",
@@ -450,7 +454,6 @@ df <- df_p |> as.data.frame() |>
   merge(tidy_cors, by = c('x','y'))
 # Convert correlations stronger than some value to an undirected graph object
 graph_cors <- df |> 
-  # filter(p<0.01, r>0.3) |> 
   filter(FDR<0.05, r>0.3) |> 
   graph_from_data_frame(directed = FALSE)
 V(graph_cors)$`Cell type` <- ifelse(V(graph_cors)$name %in% t, 'T lymphocytes',
@@ -458,7 +461,7 @@ V(graph_cors)$`Cell type` <- ifelse(V(graph_cors)$name %in% t, 'T lymphocytes',
                                         ifelse(V(graph_cors)$name %in% mye, 'Myeloid cells',
                                                ifelse(V(graph_cors)$name %in% bplasma, 'B lymphocytes', 'Non-immune'))))
 V(graph_cors)$`Cell type` <- factor(V(graph_cors)$`Cell type`, levels = c("T lymphocytes", "NK cells", "B lymphocytes", "Myeloid cells"))
-communities <- cluster_leiden(graph_cors, resolution = 0.13)
+communities <- cluster_leiden(graph_cors, resolution = 0.01)
 communities$nb_clusters
 V(graph_cors)$Cluster <- as.factor(communities$membership)
 df_cluster <- data.frame(cluster = V(graph_cors)$Cluster, celltype = V(graph_cors)$name, cellgroup = V(graph_cors)$`Cell type`)
@@ -490,40 +493,8 @@ graph_cors |>
   guides(alpha = "none", size = guide_legend(nrow = 1), color = guide_legend(nrow = 2), shape = guide_legend(nrow = 2)) +
   theme_blank() + 
   theme(legend.position="bottom") +
-  ggtitle('Immune Cells \n(FDR<0.05 & rho>0.3)')
-# communities <- cluster_leiden(graph_cors, resolution = 0.12)
-# communities$nb_clusters
-# V(graph_cors)$Cluster <- as.factor(communities$membership)
-# g <- igraph::simplify(graph_cors)
-# bb <- layout_as_backbone(g)
-# E(graph_cors)$col <- F
-# E(graph_cors)$col[bb$backbone] <- T
-# # Plot
-# p_pos <- ggraph(graph_cors,
-#        layout = "manual",
-#        x = bb$xy[, 1],
-#        y = bb$xy[, 2]) +
-#   geom_edge_link(aes(edge_alpha = abs(r), edge_width = -log10(p), color = r, col = col)) +
-#   guides(edge_alpha = "none") +
-#   scale_edge_width(breaks = c(4, 8, 12)) +
-#   scale_edge_colour_gradientn(name = "Pearson's rho", limits = c(0, 1), 
-#                               colors = colorRampPalette(c("white", "#CC0000"))(50), breaks = c(-1,0,1)) +
-#   geom_node_point(aes(color = Cluster, size = centrality_pagerank())) +
-#   scale_size(name = 'Centrality\n(PageRank)') +
-#   geom_node_text(aes(label = name), repel = TRUE, size = 3) +
-#   geom_mark_hull(
-#     aes(x, y, group = Cluster),
-#     concavity = 5,
-#     expand = unit(1, "mm"),
-#     alpha = 0.1
-#   ) +
-#   scale_color_manual(name = 'Cluster\n(Leiden)', values = brewer.pal(communities$nb_clusters, 'Paired')) +
-#   guides(color = guide_legend(override.aes = list(size = 4))) +
-#   theme_void() +
-#   theme(legend.position = "bottom",
-#         legend.text = element_text(size=10)) +
-#   ggtitle('Immune Cells\np<0.001, rho>0.3') ;p_pos
-ggsave('/bigdata/zlin/Melanoma_meta/figures/Co-regulating/graph_immune_pos.pdf', height = 8, width = 9)
+  ggtitle('(FDR<0.05 & rho>0.3)')
+ggsave('/bigdata/zlin/PanCancer_ICI/figures/Co-regulating/graph_immune_pos.pdf', height = 8, width = 9)
 
 # Convert correlations stronger than some value to an undirected graph object
 graph_cors <- df |> 
@@ -553,7 +524,7 @@ graph_cors |>
   scale_size(name = 'Edge Width\n -log(p)') +
   scale_colour_gradientn(
     name = "Pearson's Correlation", limits = c(-1, 0), breaks = c(-1,0,1), 
-    colors = colorRampPalette(c("#336699", "white"))(50),
+    colors = colorRampPalette(c("#364f77", "white"))(50),
     guide = guide_colorbar(direction = "horizontal", 
                            title.position = "top", 
                            title.hjust = 0.5)) +
@@ -569,7 +540,7 @@ graph_cors |>
   guides(alpha = "none") +
   theme_blank() + 
   ggtitle('Immune Cells \n(FDR<0.05 & rho<-0.3)')
-ggsave('/bigdata/zlin/Melanoma_meta/figures/Co-regulating/graph_immune_neg.pdf', height = 6, width = 8)
+ggsave('/bigdata/zlin/PanCancer_ICI/figures/Co-regulating/graph_immune_neg.pdf', height = 6, width = 8)
 
 # # adding coordiantes
 # g <- igraph::simplify(graph_cors)
@@ -600,51 +571,28 @@ ggsave('/bigdata/zlin/Melanoma_meta/figures/Co-regulating/graph_immune_neg.pdf',
 #   theme(legend.position = "bottom",
 #         legend.text = element_text(size=10)) +
 #   ggtitle('Immune Cells\np<0.001, rho<-0.3'); p_neg
-# ggsave('/bigdata/zlin/Melanoma_meta/figures/Co-regulating/graph_immune_neg.pdf', height = 8, width = 14)
+# ggsave('/bigdata/zlin/PanCancer_ICI/figures/Co-regulating/graph_immune_neg.pdf', height = 8, width = 14)
 # p_pos + p_neg + plot_layout(guides = "collect") & theme(legend.position = 'bottom')
 
 df <- freq_wide |> 
-  filter(celltype_r2 %in% immune, dataset != 'NSCLC_Liu') |> 
+  filter(celltype_r2 %in% immune, !dataset %in% c('NSCLC_Liu'), 
+         !patient %in% c('BCC/SCC_Yost_su009', 'BCC/SCC_Yost_su011', 'BCC/SCC_Yost_su012', 'BCC/SCC_Yost_su014'),) |> 
   select(celltype_r2, diff, patient) |> 
   pivot_wider(values_from = 'diff', names_from = celltype_r2, values_fill = 0) |> 
   column_to_rownames(var = 'patient') 
 
-pdf('/bigdata/zlin/Melanoma_meta/figures/Co-regulating/ht_isg.pdf', height = 4, width = 12)
-a <- apply(df, 1, scales::rescale, to = c(-1,1))
-a <- a[c('B_ISG15', 'CD4_Th_ISG15', 'CD4_Treg_ISG15', 'CD8_Tex_ISG15', 'cDC2_ISG15', 'Macro_ISG15'),]
+pdf('/bigdata/zlin/PanCancer_ICI/figures/Co-regulating/ht_isg.pdf', height = 4, width = 14)
+a <- apply(df, 1, scales::rescale, to = c(0,1))
+a <- a[c('B_ISG15', 'CD4_Th_ISG15', 'CD4_Treg_ISG15', 'CD8_Tex_ISG15', 'cDC2_ISG15', 'Macro_ISG15','cDC2_CXCL9'),]
 score_pos <- apply(a, 2, sum)
 a <- a[,order(score_pos)]
 pt_df <- pt_df[match(colnames(a), pt_df$patient),]
-# col_ha = HeatmapAnnotation(
-#   Dataset = pt_df$dataset,
-#   `Cancer Type` = pt_df$cancertype,
-#   Treatment = pt_df$treatment,
-#   Modality = pt_df$modality,
-#   `Response Metrics` = pt_df$res_metric,
-#   Response = pt_df$response,
-#   Cluster = pt_df$cluster,
-#   col = list(Dataset = structure(names = unique(pt_df$dataset), dittoColors()[1:length(unique(pt_df$dataset))]),
-#              `Cancer Type` = c("PCa" = "#a82203", 
-#                                "CRC" = "#208cc0",     
-#                                "NSCLC" = "#f1af3a",  
-#                                "HNSC" = "#cf5e4e",
-#                                "SCC" = "#3B7546",     
-#                                "BCC" = "#0092A5", 
-#                                "SKCM" = "#000000", 
-#                                "TNBC" = "#FF0196", 
-#                                "ER+BC" = "#F073EA",    
-#                                "HER2+BC" = "#FFB0FF"),
-#              Treatment = structure(names = unique(pt_df$treatment), pal_npg()(length(unique(pt_df$treatment)))),
-#              Modality = c('Mono' = "#9cc184", 'Dual' = "#3c7c3d"),
-#              Response = structure(names = c('RE','NR'), pal_startrek()(length(unique(pt_df$response)))),
-#              `Response Metrics` = structure(names = sort(unique(pt_df$res_metric)), met.brewer("Juarez", length(unique(pt_df$res_metric)))))
-#   )
 col_ha = HeatmapAnnotation(
     Dataset = pt_df$dataset,
-    `Cancer Type` = pt_df$cancertype,
-    Treatment = pt_df$treatment,
-    Modality = pt_df$modality,
-    `Response Metrics` = pt_df$res_metric,
+    # `Cancer Type` = pt_df$cancertype,
+    # Treatment = pt_df$treatment,
+    # Modality = pt_df$modality,
+    # `Response Metrics` = pt_df$res_metric,
     Response = pt_df$response,
   col = list(Dataset = structure(names = unique(pt_df$dataset), dittoColors()[1:length(unique(pt_df$dataset))]),
              `Cancer Type` = c("PCa" = "#a82203",
@@ -657,11 +605,12 @@ col_ha = HeatmapAnnotation(
                                "TNBC" = "#FF0196",
                                "ER+BC" = "#F073EA",
                                "HER2+BC" = "#FFB0FF"),
-             Treatment = structure(names = unique(pt_df$treatment), pal_npg()(length(unique(pt_df$treatment)))),
-             Modality = c('Mono' = "#9cc184", 'Dual' = "#3c7c3d"),
-             Response = structure(names = c('RE','NR'), pal_startrek()(length(unique(pt_df$response)))),
-             `Response Metrics` = structure(names = sort(unique(pt_df$res_metric)), met.brewer("Juarez", length(unique(pt_df$res_metric))))))
-Heatmap(a, cluster_columns = F, cluster_rows = F, 
+             # Treatment = structure(names = unique(pt_df$treatment), pal_npg()(length(unique(pt_df$treatment)))),
+             # Modality = c('Mono' = "#9cc184", 'Dual' = "#3c7c3d"),
+             # `Response Metrics` = structure(names = sort(unique(pt_df$res_metric)), met.brewer("Juarez", length(unique(pt_df$res_metric)))),
+             Response = structure(names = c('RE','NR'), pal_startrek()(length(unique(pt_df$response))))
+             ))
+Heatmap(a, cluster_columns = F, cluster_rows = T, 
         show_column_names = F, show_row_names = T, name = 'Z-score', 
         top_annotation = col_ha, 
         width = ncol(a)*unit(1, "mm"), 
@@ -673,41 +622,82 @@ Heatmap(a, cluster_columns = F, cluster_rows = F,
           title_position = "topcenter"))
 dev.off()
 
-pdf('/bigdata/zlin/Melanoma_meta/figures/Co-regulating/ht_mac_naive_plasmsa.pdf', height = 5, width = 12)
-a <- apply(df, 1, scales::rescale, to = c(-1,1))
-a <- a[c('B_Naive','B_Memory', 'B_AtM', 'CD4_Naive', 'CD8_Naive', 'Mono_CD14', 'Mono_CD16', 'gdT', 'NK_CD56loCD16hi', 'CD8_Temra_CX3CR1', 'CD4_Tm_CREM-', 'CD8_Trm_ZNF683', 'CD4_Treg_Early', 'CD4_Treg_TNFRSF9', 'Macro_C1QC', 'Plasma_cell'),]
-score_pos <- apply(a[c('Plasma_cell','Macro_C1QC','CD4_Tm_CREM-', 'CD8_Trm_ZNF683', 'CD4_Treg_Early', 'CD4_Treg_TNFRSF9'),], 2, sum)
-score_neg <- apply(a[c('B_Memory', 'Mono_CD14', 'CD4_Naive', 'B_Naive', 'CD8_Naive'),], 2, sum)
-# score_neg <- a[13,]
-a <- a[,order(score_pos-score_neg)]
+score_pos <- apply(df[,c('B_ISG15', 'CD4_Th_ISG15', 'CD4_Treg_ISG15', 'CD8_Tex_ISG15', 'cDC2_ISG15', 'Macro_ISG15', 'cDC2_CXCL9')], 1, sum)
+pt_df$isg <- score_pos[match(pt_df$patient, names(score_pos))]
+pt_df |> 
+  ggplot(aes(x = response, y = isg)) +
+  geom_boxplot() + geom_point(aes(color = dataset)) + 
+  facet_wrap(.~res_metric, scales = 'free_y') + 
+  ggpubr::stat_compare_means(method = 't.test') + ylab('Overall Dynamics(ISG15+)') + theme_bw()
+pt_df |>
+  filter(res_metric %in% c('T-cell expansion','T-cell expansion+MRI')) |> 
+  mutate(expansion = case_when(response == 'RE' ~ 'E',
+                               response == 'NR' ~ 'NE')) |> 
+  ggplot(aes(x = factor(expansion, level = c('NE','E')), y = isg)) + 
+  geom_violin(aes(color = expansion)) +
+  scale_color_manual(name = 'Expansion', values = c('#CF0034','#154999')) +
+  ggnewscale::new_scale_color() +
+  geom_jitter(aes(color = dataset), width = 0.1) +
+  scale_color_jama(name = 'Cohort') +
+  geom_boxplot(width = 0.5, alpha = 0.5) +
+  # facet_wrap(.~dataset) +
+  ggpubr::stat_compare_means(method = 't.test') + 
+  ylab('Overall Dynamics \n(ISG15+)') + xlab('') + ggtitle('T Cell Expansion') +
+  theme_bw()
+ggsave('/bigdata/zlin/PanCancer_ICI/figures/Co-regulating/expansion_isg.pdf', height = 3.5, width = 5)
+
+# pt_df |>
+#   filter(res_metric %in% c('T-cell expansion','T-cell expansion+MRI')) |> 
+#   mutate(expansion = case_when(response == 'RE' ~ 'E',
+#                                response == 'NR' ~ 'NE')) |> 
+#   ggplot(aes(x = factor(expansion, level = c('NE','E')), y = isg)) + 
+#   geom_violin(aes(color = expansion)) +
+#   scale_color_manual(name = 'Expansion', values = c('#CF0034','#154999')) +
+#   ggnewscale::new_scale_color() +
+#   # geom_jitter(aes(color = dataset), width = 0.1) +
+#   # scale_color_jama(name = 'Cohort') +
+#   geom_boxplot(width = 0.5, alpha = 0.5) +
+#   facet_wrap(.~dataset) +
+#   ggpubr::stat_compare_means(method = 't.test') + 
+#   ylab('Overall Dynamics \n(ISG15+)') + xlab('') + ggtitle('T Cell Expansion') +
+#   theme_bw()
+# ggsave('/bigdata/zlin/PanCancer_ICI/figures/Co-regulating/expansion_isg_cohort.pdf', height = 3.5, width = 8)
+
+pdf('/bigdata/zlin/PanCancer_ICI/figures/Co-regulating/ht_mac_naive_plasmsa.pdf', height = 5, width = 14)
+a <- apply(df, 1, scales::rescale, to = c(0,1)) 
+a <- a[c('B_Naive','CD4_Naive', 'CD8_Naive', 'CD4_Tm_AREG','CD4_Tm_CREM','B_Memory', 'B_AtM','NK_CD56loCD16hi', 'CD8_Temra_CX3CR1', 'CD4_Temra_CX3CR1','CD4_Treg_TNFRSF9', 'Macro_C1QC', 'Plasma_cell'),]
+score_pos <- apply(a[c('B_Naive','CD4_Naive', 'CD8_Naive', 'CD4_Tm_AREG','CD4_Tm_CREM','B_Memory', 'B_AtM','NK_CD56loCD16hi', 'CD8_Temra_CX3CR1', 'CD4_Temra_CX3CR1'),], 2, sum)
+score_neg <- apply(a[c('CD4_Treg_TNFRSF9', 'Macro_C1QC', 'Plasma_cell'),], 2, sum)
+a <- a[,order(score_neg-score_pos)]
 pt_df <- pt_df[match(colnames(a), pt_df$patient),]
 col_ha = HeatmapAnnotation(
   Dataset = pt_df$dataset,
-  `Cancer Type` = pt_df$cancertype,
-  Treatment = pt_df$treatment,
-  Modality = pt_df$modality,
-  `Response Metrics` = pt_df$res_metric,
-  Response = pt_df$response,
-  col = list(Dataset = structure(names = unique(pt_df$dataset), dittoColors()[1:length(unique(pt_df$dataset))]),
-             `Cancer Type` = c("PCa" = "#a82203",
-                               "CRC" = "#208cc0",
-                               "NSCLC" = "#f1af3a",
-                               "HNSC" = "#cf5e4e",
-                               "SCC" = "#3B7546",
-                               "BCC" = "#0092A5",
-                               "SKCM" = "#000000",
-                               "TNBC" = "#FF0196",
-                               "ER+BC" = "#F073EA",
-                               "HER2+BC" = "#FFB0FF"),
-             Treatment = structure(names = unique(pt_df$treatment), pal_npg()(length(unique(pt_df$treatment)))),
-             Modality = c('Mono' = "#9cc184", 'Dual' = "#3c7c3d"),
-             Response = structure(names = c('RE','NR'), pal_startrek()(length(unique(pt_df$response)))),
-             `Response Metrics` = structure(names = sort(unique(pt_df$res_metric)), met.brewer("Juarez", length(unique(pt_df$res_metric))))))
-Heatmap(a, cluster_columns = F, cluster_rows = F, 
+  # `Cancer Type` = pt_df$cancertype,
+  # Treatment = pt_df$treatment,
+  # Modality = pt_df$modality,
+  # `Response Metrics` = pt_df$res_metric,
+  # Response = pt_df$response,
+  col = list(Dataset = structure(names = unique(pt_df$dataset), dittoColors()[1:length(unique(pt_df$dataset))])
+             # `Cancer Type` = c("PCa" = "#a82203",
+             #                   "CRC" = "#208cc0",
+             #                   "NSCLC" = "#f1af3a",
+             #                   "HNSC" = "#cf5e4e",
+             #                   "SCC" = "#3B7546",
+             #                   "BCC" = "#0092A5",
+             #                   "SKCM" = "#000000",
+             #                   "TNBC" = "#FF0196",
+             #                   "ER+BC" = "#F073EA",
+             #                   "HER2+BC" = "#FFB0FF"),
+             # Treatment = structure(names = unique(pt_df$treatment), pal_npg()(length(unique(pt_df$treatment)))),
+             # Modality = c('Mono' = "#9cc184", 'Dual' = "#3c7c3d"),
+             # `Response Metrics` = structure(names = sort(unique(pt_df$res_metric)), met.brewer("Juarez", length(unique(pt_df$res_metric)))),
+             # Response = structure(names = c('RE','NR'), pal_startrek()(length(unique(pt_df$response))))
+             ))
+Heatmap(a, cluster_columns = F, cluster_rows = F, row_names_side = 'left',
         show_column_names = F, show_row_names = T, name = 'Z-score', 
         top_annotation = col_ha, 
         width = ncol(a)*unit(1, "mm"), 
-        height = nrow(a)*unit(5, "mm"), 
+        height = nrow(a)*unit(4, "mm"), 
         col = rev(colorRampPalette(brewer.pal(6,'RdBu'))(100)),
         heatmap_legend_param = list(
           legend_direction = "horizontal", 
@@ -717,10 +707,8 @@ dev.off()
 
 a <- apply(df, 1, scales::rescale, to = c(-1,1))
 a <- a[c('B_ISG15','CD4_Th_ISG15', 'CD4_Treg_ISG15','CD8_Tex_ISG15', 'cDC2_ISG15', 'Macro_ISG15','CD4_TfhTh1_IFNG'),]
-score_pos <- apply(a[1:7,], 2, sum)
-# score_neg <- apply(a[6:10,], 2, sum)
-# score_neg <- a[7,]
-a <- a[,order(score_pos)]
+score <- apply(a[1:7,], 2, sum)
+a <- a[,order(score)]
 pt_df <- pt_df[match(colnames(a), pt_df$patient),]
 # col_ha = HeatmapAnnotation(
 #   Dataset = pt_df$dataset,
@@ -817,7 +805,7 @@ col_ha = HeatmapAnnotation(
              Response = structure(names = c('RE','NR'), pal_startrek()(length(unique(pt_df$response)))),
              `Response Metrics` = structure(names = sort(unique(pt_df$res_metric)), met.brewer("Juarez", length(unique(pt_df$res_metric)))))
 )
-pdf('/bigdata/zlin/Melanoma_meta/figures/Co-regulating/ht_mac_naive_plasmsa_caf.pdf', height = 7, width = 12)
+pdf('/bigdata/zlin/PanCancer_ICI/figures/Co-regulating/ht_mac_naive_plasmsa_caf.pdf', height = 7, width = 12)
 Heatmap(a, cluster_columns = F, cluster_rows = F, 
         show_column_names = F, show_row_names = T, name = 'Z-score', 
         top_annotation = col_ha, 
@@ -839,81 +827,81 @@ Heatmap(a, cluster_columns = T, cluster_rows = T,
         top_annotation = col_ha, 
         width = ncol(a)*unit(1, "mm"), 
         height = nrow(a)*unit(2.5, "mm"), col = rev(colorRampPalette(brewer.pal(6,'RdBu'))(100)))
-
-# modality
-pdf('/bigdata/zlin/Melanoma_meta/figures/Co-regulating/freq_immune_modality.pdf', height = 10, width = 18)
-par(mfrow=c(1,2))
-cols <- colorRampPalette(c("#336699", "white", "#CC0000")) 
-mat_change <- freq_wide |> 
-  filter(dataset != 'NSCLC_Liu', 
-         modality == 'Mono',
-         celltype_r2 %in% immune) |> 
-  select(patient, diff, celltype_r2) |> 
-  pivot_wider(values_from = diff, names_from = patient, values_fill = 0) |> 
-  column_to_rownames(var = 'celltype_r2')
-M <- cor(t(mat_change))
-testRes <- cor.mtest(t(mat_change), conf.level = 0.95)
-corrplot(M, p.mat = testRes$p, col = cols(100), tl.srt=45,
-         tl.cex = 0.5, pch.cex = 0.6, tl.col = 'black', order = 'hclust', hclust.method = "ward.D2",
-         mar = c(0,0,0.7,0),
-         sig.level = c(0.01, 0.05), insig = 'label_sig', title = 'Mono', diag = F, method = 'square', type = 'upper') 
-mat_change <- freq_wide |> 
-  filter(dataset != 'NSCLC_Liu', 
-         modality == 'Dual',
-         celltype_r2 %in% immune) |> 
-  select(patient, diff, celltype_r2) |> 
-  pivot_wider(values_from = diff, names_from = patient, values_fill = 0) |> 
-  column_to_rownames(var = 'celltype_r2')
-M <- cor(t(mat_change))
-testRes <- cor.mtest(t(mat_change), conf.level = 0.95)
-corrplot(M, p.mat = testRes$p, col = cols(100), tl.srt=45,
-         tl.cex = 0.5, pch.cex = 0.6, tl.col = 'black', order = 'hclust', hclust.method = "ward.D2",
-         mar = c(0,0,0.7,0),
-         sig.level = c(0.01, 0.05), insig = 'label_sig', title = 'Dual', diag = F, method = 'square', type = 'upper') 
-dev.off()
-
-# response
-pdf('/bigdata/zlin/Melanoma_meta/figures/Co-regulating/freq_immune_response.pdf', height = 10, width = 18)
-par(mfrow=c(1,2))
-cols <- colorRampPalette(c("#336699", "white", "#CC0000")) 
-mat_change <- freq_wide |> 
-  filter(dataset != 'NSCLC_Liu', 
-         response == 'RE',
-         celltype_r2 %in% immune) |> 
-  select(patient, diff, celltype_r2) |> 
-  pivot_wider(values_from = diff, names_from = patient, values_fill = 0) |> 
-  column_to_rownames(var = 'celltype_r2')
-M <- cor(t(mat_change))
-testRes <- cor.mtest(t(mat_change), conf.level = 0.95)
-corrplot(M, p.mat = testRes$p, col = cols(100), tl.srt=45,
-         tl.cex = 0.5, pch.cex = 0.6, tl.col = 'black', order = 'hclust', hclust.method = "ward.D2",
-         mar = c(0,0,0.7,0),
-         sig.level = c(0.01, 0.05), insig = 'label_sig', title = 'RE', diag = F, method = 'square', type = 'upper') 
-mat_change <- freq_wide |> 
-  filter(dataset != 'NSCLC_Liu', 
-         response == 'NR',
-         celltype_r2 %in% immune) |> 
-  select(patient, diff, celltype_r2) |> 
-  pivot_wider(values_from = diff, names_from = patient, values_fill = 0) |> 
-  column_to_rownames(var = 'celltype_r2')
-M <- cor(t(mat_change))
-testRes <- cor.mtest(t(mat_change), conf.level = 0.95)
-corrplot(M, p.mat = testRes$p, col = cols(100), tl.srt=45,
-         tl.cex = 0.5, pch.cex = 0.6, tl.col = 'black', order = 'hclust', hclust.method = "ward.D2",
-         mar = c(0,0,0.7,0),
-         sig.level = c(0.01, 0.05), insig = 'label_sig', title = 'NR', diag = F, method = 'square', type = 'upper') 
-dev.off()
+# 
+# # modality
+# pdf('/bigdata/zlin/PanCancer_ICI/figures/Co-regulating/freq_immune_modality.pdf', height = 10, width = 18)
+# par(mfrow=c(1,2))
+# cols <- colorRampPalette(c("#336699", "white", "#CC0000")) 
+# mat_change <- freq_wide |> 
+#   filter(dataset != 'NSCLC_Liu', 
+#          modality == 'Mono',
+#          celltype_r2 %in% immune) |> 
+#   select(patient, diff, celltype_r2) |> 
+#   pivot_wider(values_from = diff, names_from = patient, values_fill = 0) |> 
+#   column_to_rownames(var = 'celltype_r2')
+# M <- cor(t(mat_change))
+# testRes <- cor.mtest(t(mat_change), conf.level = 0.95)
+# corrplot(M, p.mat = testRes$p, col = cols(100), tl.srt=45,
+#          tl.cex = 0.5, pch.cex = 0.6, tl.col = 'black', order = 'hclust', hclust.method = "ward.D2",
+#          mar = c(0,0,0.7,0),
+#          sig.level = c(0.01, 0.05), insig = 'label_sig', title = 'Mono', diag = F, method = 'square', type = 'upper') 
+# mat_change <- freq_wide |> 
+#   filter(dataset != 'NSCLC_Liu', 
+#          modality == 'Dual',
+#          celltype_r2 %in% immune) |> 
+#   select(patient, diff, celltype_r2) |> 
+#   pivot_wider(values_from = diff, names_from = patient, values_fill = 0) |> 
+#   column_to_rownames(var = 'celltype_r2')
+# M <- cor(t(mat_change))
+# testRes <- cor.mtest(t(mat_change), conf.level = 0.95)
+# corrplot(M, p.mat = testRes$p, col = cols(100), tl.srt=45,
+#          tl.cex = 0.5, pch.cex = 0.6, tl.col = 'black', order = 'hclust', hclust.method = "ward.D2",
+#          mar = c(0,0,0.7,0),
+#          sig.level = c(0.01, 0.05), insig = 'label_sig', title = 'Dual', diag = F, method = 'square', type = 'upper') 
+# dev.off()
+# 
+# # response
+# pdf('/bigdata/zlin/PanCancer_ICI/figures/Co-regulating/freq_immune_response.pdf', height = 10, width = 18)
+# par(mfrow=c(1,2))
+# cols <- colorRampPalette(c("#336699", "white", "#CC0000")) 
+# mat_change <- freq_wide |> 
+#   filter(dataset != 'NSCLC_Liu', 
+#          response == 'RE',
+#          celltype_r2 %in% immune) |> 
+#   select(patient, diff, celltype_r2) |> 
+#   pivot_wider(values_from = diff, names_from = patient, values_fill = 0) |> 
+#   column_to_rownames(var = 'celltype_r2')
+# M <- cor(t(mat_change))
+# testRes <- cor.mtest(t(mat_change), conf.level = 0.95)
+# corrplot(M, p.mat = testRes$p, col = cols(100), tl.srt=45,
+#          tl.cex = 0.5, pch.cex = 0.6, tl.col = 'black', order = 'hclust', hclust.method = "ward.D2",
+#          mar = c(0,0,0.7,0),
+#          sig.level = c(0.01, 0.05), insig = 'label_sig', title = 'RE', diag = F, method = 'square', type = 'upper') 
+# mat_change <- freq_wide |> 
+#   filter(dataset != 'NSCLC_Liu', 
+#          response == 'NR',
+#          celltype_r2 %in% immune) |> 
+#   select(patient, diff, celltype_r2) |> 
+#   pivot_wider(values_from = diff, names_from = patient, values_fill = 0) |> 
+#   column_to_rownames(var = 'celltype_r2')
+# M <- cor(t(mat_change))
+# testRes <- cor.mtest(t(mat_change), conf.level = 0.95)
+# corrplot(M, p.mat = testRes$p, col = cols(100), tl.srt=45,
+#          tl.cex = 0.5, pch.cex = 0.6, tl.col = 'black', order = 'hclust', hclust.method = "ward.D2",
+#          mar = c(0,0,0.7,0),
+#          sig.level = c(0.01, 0.05), insig = 'label_sig', title = 'NR', diag = F, method = 'square', type = 'upper') 
+# dev.off()
 
 # TME
 mat_change <- freq_wide |> 
-  filter(dataset %in% c('SKCM_Becker', 'BRCA_Bassez1', 'BRCA_Bassez2', 'BCC/SCC_Yost', 'BCC/SCC_Yost', 'PCa_Hawley', 'HNSC_Franken'), 
+  filter(dataset %in% c('SKCM_Becker', 'BRCA_Bassez1', 'BRCA_Bassez2', 'BCC/SCC_Yost', 'BCC/SCC_Yost', 'PCa_Hawley', 'HNSC_Franken', 'CRC_Chen', 'CRC_Li'), 
          !patient %in% c("BCC/SCC_Yost_su009", "BCC/SCC_Yost_su011", "BCC/SCC_Yost_su012", "BCC/SCC_Yost_su014")) |> 
   select(patient, diff, celltype_r2) |> 
   pivot_wider(values_from = diff, names_from = patient, values_fill = 0) |> 
   column_to_rownames(var = 'celltype_r2') 
 M <- cor(t(mat_change))
 testRes <- cor.mtest(t(mat_change), conf.level = 0.95)
-pdf('/bigdata/zlin/Melanoma_meta/figures/Co-regulating/freq_TME.pdf', height = 10, width = 10)
+pdf('/bigdata/zlin/PanCancer_ICI/figures/Co-regulating/freq_TME.pdf', height = 10, width = 10)
 cols <- colorRampPalette(c("#336699", "white", "#CC0000")) 
 corrplot(M, p.mat = testRes$p, method = 'square', col = cols(100), tl.srt = 45, 
          tl.cex = 0.5, pch.cex = 0.6, tl.col = 'black', order = 'hclust', hclust.method = "ward.D2", mar = c(0,0,1,0),
@@ -965,14 +953,14 @@ graph_cors |>
   scale_color_manual(values=met.brewer("Egypt", 5), name = 'Node Color') +
   # geom_mark_hull(
   #   aes(x, y, group = Cluster, filter = Cluster %in% cluster_to_mark),
-  #   concavity = 5,
-  #   expand = unit(2.5, "mm"), 
+  #   concavity = 3,
+  #   expand = unit(2.5, "mm"),
   #   color = 'darkgray') +
   geom_nodetext_repel(aes(label = name), size = 3) +
   guides(alpha = "none") +
   theme_blank() + 
   ggtitle('TME \n(FDR<0.05 & rho>0.3)')
-ggsave('/bigdata/zlin/Melanoma_meta/figures/Co-regulating/graph_TME_pos.pdf', height = 8, width = 9)
+ggsave('/bigdata/zlin/PanCancer_ICI/figures/Co-regulating/graph_TME_pos.pdf', height = 8, width = 9)
 
 graph_cors <- df |> 
   filter(FDR<0.05, r< -0.3) |> 
@@ -1015,7 +1003,7 @@ graph_cors |>
   guides(alpha = "none") +
   theme_blank() + 
   ggtitle('TME \n(FDR<0.05, rho< -0.3)')
-ggsave('/bigdata/zlin/Melanoma_meta/figures/Co-regulating/graph_TME_neg.pdf', height = 8, width = 9)
+ggsave('/bigdata/zlin/PanCancer_ICI/figures/Co-regulating/graph_TME_neg.pdf', height = 8, width = 9)
 
 freq_wide |> 
   filter(dataset %in% c('SKCM_Becker', 'BRCA_Bassez1', 'BRCA_Bassez2', 'BCC/SCC_Yost', 'BCC/SCC_Yost', 'PCa_Hawley', 'HNSC_Franken'), 
@@ -1033,25 +1021,25 @@ freq_wide |>
   geom_smooth( method = lm) + 
   ggpubr::stat_cor() + 
   theme_minimal()
-ggsave('/bigdata/zlin/Melanoma_meta/figures/Co-regulating/scatter_treg_caf.pdf', height = 4, width = 5)
+ggsave('/bigdata/zlin/PanCancer_ICI/figures/Co-regulating/scatter_treg_caf.pdf', height = 4, width = 5)
 
 freq_wide |> 
-  filter(dataset %in% c('SKCM_Becker', 'BRCA_Bassez1', 'BRCA_Bassez2', 'BCC/SCC_Yost', 'BCC/SCC_Yost', 'PCa_Hawley', 'HNSC_Franken'), 
+  filter(dataset %in% c('SKCM_Becker', 'BRCA_Bassez1', 'BRCA_Bassez2', 'BCC/SCC_Yost', 'BCC/SCC_Yost', 'PCa_Hawley', 'HNSC_Franken', 'CRC_Li', 'CRC_Chen'), 
          !patient %in% c("BCC/SCC_Yost_su009", "BCC/SCC_Yost_su011", "BCC/SCC_Yost_su012", "BCC/SCC_Yost_su014")) |> 
   select(patient, diff, celltype_r2) |> 
   pivot_wider(values_from = diff, names_from = patient, values_fill = 0) |> 
-  filter(celltype_r2 %in% c('CAF_adipogenic','Macro_LYVE1')) |> 
+  filter(celltype_r2 %in% c('CAF_inflammatory','CD4_Treg_TNFRSF9')) |> 
   column_to_rownames(var = 'celltype_r2') |> 
   t() |> data.frame() |> 
   rownames_to_column(var = 'celltypes') |> 
   dplyr::mutate(`Cancer type` = str_split(celltypes, '_', simplify = T)[,1]) |> 
-  ggplot(aes(CAF_adipogenic, Macro_LYVE1)) + 
+  ggplot(aes(CAF_inflammatory, CD4_Treg_TNFRSF9)) + 
   geom_point(aes(color = `Cancer type`)) + 
-  scale_color_manual(values = brewer.pal(4, 'Set1')) +
+  scale_color_manual(values = brewer.pal(5, 'Set1')) +
   geom_smooth( method = lm) + 
   ggpubr::stat_cor() + 
   theme_minimal() 
-ggsave('/bigdata/zlin/Melanoma_meta/figures/Co-regulating/scatter_macro_caf.pdf', height = 4, width = 5)
+ggsave('/bigdata/zlin/PanCancer_ICI/figures/Co-regulating/scatter_caf_treg.pdf', height = 4, width = 5)
 
 # Pre vs diff
 list_res <- lapply(unique(freq_wide$celltype_r2), function(subtype){

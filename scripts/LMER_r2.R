@@ -1,15 +1,15 @@
 rm(list=ls())
-pkgs <- c('tidyr','plyr','dplyr','stringr','ggsci','patchwork','ggplot2','tibble','qs','MetBrewer','forcats','lmerTest','grid','rstatix','ggpubr','RColorBrewer','ggrepel')
+pkgs <- c('tidyr','plyr','dplyr','stringr','ggsci','patchwork','ggplot2','tibble','qs','MetBrewer','forcats','lmerTest','grid','rstatix','ggpubr','RColorBrewer','ggrepel','effsize')
 unlist(lapply(pkgs, function(x) require(package = x,  character.only = TRUE, quietly = TRUE, warn.conflicts = FALSE)))
 options(warn = -1)
 
 # Change at r2 level
-meta_int <- read.csv('/bigdata/zlin/Melanoma_meta/tables/meta_int.csv') 
+meta_int <- read.csv('/bigdata/zlin/PanCancer_ICI/tables/meta_int.csv') 
 freq_mat <- meta_int |> 
   distinct(celltype_r2, sample, .keep_all = T) |> 
   select(freq_r2_comp, dataset, response, modality, int_cat, patient, time_point, celltype_r2) |> 
   pivot_wider(values_from = freq_r2_comp, names_from = time_point, values_fill = 0) |> 
-  pivot_longer(cols = c('Pre', 'Post'), names_to = 'time_point', values_to = 'freq_r2_comp') |> 
+  pivot_longer(cols = c('Pre', 'On'), names_to = 'time_point', values_to = 'freq_r2_comp') |> 
   group_by(celltype_r2) |> 
   mutate(freq_r2_comp_scale = scale(freq_r2_comp)) |> 
   ungroup()
@@ -57,11 +57,11 @@ uni_lmer <- function(freq_mat){
 
 # Overall
 res_lmer <- uni_lmer(freq_mat)
-write.csv(res_lmer, file = '/bigdata/zlin/Melanoma_meta/tables/lmer_all.csv', row.names = F)
+write.csv(res_lmer, file = '/bigdata/zlin/PanCancer_ICI/tables/lmer_all.csv', row.names = F)
 res_lmer <- filter(res_lmer, pValue < 0.05)
 
 # Making plot
-pdf('/bigdata/zlin/Melanoma_meta/figures/Change/uni_lmer_r2.pdf', height = 6, width = 5)
+pdf('/bigdata/zlin/PanCancer_ICI/figures/Change/uni_lmer_r2.pdf', height = 6, width = 5)
 p <- ggplot(res_lmer, aes(x= factor(Celltypes, levels = rev(res_lmer$Celltypes)), y=Estimate, ymin=CI_lower, ymax=CI_upper, size = -log10(pValue))) +
   geom_linerange(aes(color = fdr_cat), size=1, position=position_dodge(width = 0.5)) +
   geom_hline(yintercept=0, lty=2) +
@@ -95,10 +95,10 @@ grid.segments(
   arrow = arrow(type = "open", length = unit(0.05, "inches"))
 )
 grid.text("Pre", x = unit(x1, "npc"), y = unit(y_text, "npc"), gp = gpar(fontsize = 8))
-grid.text("Post", x = unit(x2, "npc"), y = unit(y_text, "npc"), gp = gpar(fontsize = 8))
+grid.text("On", x = unit(x2, "npc"), y = unit(y_text, "npc"), gp = gpar(fontsize = 8))
 dev.off()
 
-order <- c("Overall", "SKCM_Becker", "BCC_Yost", "SCC_Yost","BRCA_Bassez1", "BRCA_Bassez2", "TNBC_Shiao", "TNBC_Zhang", "HNSC_Franken", "HNSC_IMCISION", "HNSC_Luoma", "CRC_Li", "NSCLC_Liu")
+order <- c("Overall", "SKCM_Becker", "BCC_Yost", "SCC_Yost","BRCA_Bassez1", "BRCA_Bassez2", "TNBC_Shiao", "TNBC_Zhang", "HNSC_Franken", "HNSC_IMCISION", "HNSC_Luoma", "CRC_Li", "CRC_Chen", "NSCLC_Liu")
 subtypes <- res_lmer |> 
   filter(fdr<0.05) |> 
   select(Celltypes) |> 
@@ -110,7 +110,7 @@ list_res <- lapply(subtypes, function(subtype){
     distinct(celltype_r2, sample, .keep_all = T) |> 
     select(freq_r2_comp, dataset, response, modality, int_cat, patient, time_point, celltype_r2) |> 
     pivot_wider(values_from = freq_r2_comp, names_from = time_point, values_fill = 0) |> 
-    pivot_longer(cols = c('Pre', 'Post'), names_to = 'time_point', values_to = 'freq_r2_comp') |> 
+    pivot_longer(cols = c('Pre', 'On'), names_to = 'time_point', values_to = 'freq_r2_comp') |> 
     filter(celltype_r2 == subtype) |> 
     group_by(dataset) |> 
     mutate(freq_r2_comp_scale = scale(freq_r2_comp),
@@ -150,16 +150,18 @@ list_res <- lapply(subtypes, function(subtype){
   res_df <- rbind(res_subtype_all, res_df) 
 })
 names(list_res) <- subtypes
-i <- 2
-subtype <- subtypes[[i]]
+i <- 6
+subtype <- subtypes[[i]]; subtype
 res <- list_res[[i]]
-pdf(paste0('/bigdata/zlin/Melanoma_meta/figures/Change/', subtype, '.pdf'), height = 4, width = 5)
+min(res$CI_lower)
+max(res$CI_upper)
+pdf(paste0('/bigdata/zlin/PanCancer_ICI/figures/Change/', subtype, '.pdf'), height = 4, width = 5)
 p <- ggplot(res, aes(x= factor(dataset, levels = rev(order)), y= Estimate, ymin=CI_lower, ymax=CI_upper, size = -log10(pValue))) +
   geom_linerange(size=1, color = '#A4DBFF', position=position_dodge(width = 0.5)) +
   geom_hline(yintercept=0, lty=2) +
   geom_point(shape=21, fill="#0047AB", color='white', stroke = 0.5, position=position_dodge(width = 0.5)) +
   scale_size(breaks = c(-log10(0.05), -log10(0.1), -log10(0.5)), labels = c('<0.05', '<0.1', '<0.5'), range = c(2,5)) +
-  scale_y_continuous(name= "Effect Size", limits = c(-0.48, 0.62)) + 
+  scale_y_continuous(name= "Effect Size", limits = c(-0.6, 0.6)) + 
   coord_flip() + theme_minimal() + ggtitle(unique(res$Celltypes)) +
   labs(size = "P value") + xlab("") +
   guides(size = guide_legend(override.aes = list(fill = "#0047AB"))) +
@@ -182,17 +184,17 @@ grid.segments(
   arrow = arrow(type = "open", length = unit(0.05, "inches"))
 )
 grid.text("Pre", x = unit(0.3, "npc"), y = unit(0.18, "npc"), gp = gpar(fontsize = 8))
-grid.text("Post", x = unit(0.75, "npc"), y = unit(0.18, "npc"), gp = gpar(fontsize = 8))
+grid.text("On", x = unit(0.75, "npc"), y = unit(0.18, "npc"), gp = gpar(fontsize = 8))
 dev.off()
 
 # boxplot
 df_add <- meta_int |> 
   distinct(sample, celltype_r2, .keep_all = T) |> 
-  filter(celltype_r2 %in% res_lmer$Celltypes[!grepl('ISG15|B_LMO2', res_lmer$Celltypes)]) |> 
+  filter(celltype_r2 %in% res_lmer$Celltypes[!grepl('ISG15', res_lmer$Celltypes)]) |> 
   mutate(celltype_r2 = factor(celltype_r2, levels = res_lmer$Celltypes)) |> 
   select(freq_r2_comp, time_point, patient, celltype_r2) |> 
   pivot_wider(values_from = freq_r2_comp, names_from = time_point, values_fill = 0) |> 
-  mutate(direction = ifelse(Post > Pre*1.1, 'Up', ifelse(Post < Pre*0.9, 'Down', 'not'))) |>
+  mutate(direction = ifelse(On > Pre*1.1, 'Up', ifelse(On < Pre*0.9, 'Down', 'not'))) |>
   group_by(celltype_r2) |> 
   mutate(pt_count = n()) |> 
   group_by(direction, .add = T) |> 
@@ -203,11 +205,11 @@ df_add <- meta_int |>
 # P1
 stat.test <- meta_int |> 
   distinct(sample, celltype_r2, .keep_all = T) |> 
-  filter(celltype_r2 %in% res_lmer$Celltypes[!grepl('ISG15|B_LMO2', res_lmer$Celltypes)]) |> 
+  filter(celltype_r2 %in% res_lmer$Celltypes[!grepl('ISG15', res_lmer$Celltypes)]) |> 
   mutate(celltype_r2 = factor(celltype_r2, levels = res_lmer$Celltypes)) |> 
   select(freq_r2_comp, time_point, patient, celltype_r2) |> 
   pivot_wider(values_from = freq_r2_comp, names_from = time_point, values_fill = 0) |>
-  pivot_longer(cols = c('Pre', 'Post'), names_to = 'time_point', values_to = 'freq_r2_comp') |> 
+  pivot_longer(cols = c('Pre', 'On'), names_to = 'time_point', values_to = 'freq_r2_comp') |> 
   group_by(celltype_r2) |> 
   t_test(freq_r2_comp~time_point, paired = T) |> 
   add_significance("p")
@@ -223,24 +225,24 @@ meta_int |>
   mutate(celltype_r2 = factor(celltype_r2, levels = res_lmer$Celltypes)) |> 
   select(freq_r2_comp, time_point, patient, celltype_r2) |> 
   pivot_wider(values_from = freq_r2_comp, names_from = time_point, values_fill = 0) |>
-  pivot_longer(cols = c('Pre', 'Post'), names_to = 'time_point', values_to = 'freq_r2_comp') |> 
+  pivot_longer(cols = c('Pre', 'On'), names_to = 'time_point', values_to = 'freq_r2_comp') |> 
   select(freq_r2_comp, time_point, patient, celltype_r2) |> 
   merge(stat.test, by = 'celltype_r2') |> 
-  ggplot(aes(x = factor(time_point, levels = c('Pre', 'Post')), y = freq_r2_comp)) +
+  ggplot(aes(x = factor(time_point, levels = c('Pre', 'On')), y = freq_r2_comp)) +
   geom_violin(aes(fill = time_point), alpha = 0.6) +
   geom_boxplot(width = 0.3, alpha = 0.2) +
   geom_line(aes(group = patient), linetype = "dashed", size = 0.2, alpha = 0.3) +
   geom_point(aes(color = time_point), size = 0.1) +
   scale_color_manual(values = c('#154999', '#CF0034')) +
   scale_fill_manual(values = c('#154999', '#CF0034')) +
-  facet_wrap(.~celltype_r2 + strip_label, scales = 'free', ncol = 4) +
+  facet_wrap(.~celltype_r2 + strip_label, scales = 'free', ncol = 5) +
   xlab("") + ylab("Relative Frequency") + 
   theme_classic() + 
   theme(axis.text.x = element_text(size = 8, colour = 'black'),
         strip.text = element_text(size = 8, margin = margin(2,1,2,1))) +
   guides(fill="none", color = "none",
          color = guide_legend(override.aes = list(size=6))) 
-ggsave('/bigdata/zlin/Melanoma_meta/figures/Change/boxplot.pdf', width = 8, height = 7)
+ggsave('/bigdata/zlin/PanCancer_ICI/figures/Change/boxplot.pdf', width = 8, height = 7)
 
 # ISG15 specific
 subtypes <- unique(meta_int$celltype_r2[str_detect(meta_int$celltype_r2,'ISG15')])
@@ -251,7 +253,7 @@ df_add <- meta_int |>
   filter(celltype_r2 %in% subtypes) |> 
   select(freq_r2_comp, time_point, patient, celltype_r2) |> 
   pivot_wider(values_from = freq_r2_comp, names_from = time_point, values_fill = 0) |> 
-  mutate(direction = ifelse(Post > Pre*1.1, 'Up', ifelse(Post < Pre*0.9, 'Down', 'not'))) |>
+  mutate(direction = ifelse(On > Pre*1.1, 'Up', ifelse(On < Pre*0.9, 'Down', 'not'))) |>
   group_by(celltype_r2) |> 
   mutate(pt_count = n()) |> 
   group_by(direction, .add = T) |> 
@@ -264,7 +266,7 @@ stat.test <- meta_int |>
   filter(celltype_r2 %in% subtypes) |>  
   select(freq_r2_comp, time_point, patient, celltype_r2) |> 
   pivot_wider(values_from = freq_r2_comp, names_from = time_point, values_fill = 0) |>
-  pivot_longer(cols = c('Pre', 'Post'), names_to = 'time_point', values_to = 'freq_r2_comp') |> 
+  pivot_longer(cols = c('Pre', 'On'), names_to = 'time_point', values_to = 'freq_r2_comp') |> 
   group_by(celltype_r2) |> 
   t_test(freq_r2_comp~time_point, paired = T) |> 
   add_significance("p")
@@ -277,10 +279,10 @@ meta_int |>
   filter(celltype_r2 %in% subtypes) |> 
   select(freq_r2_comp, time_point, patient, celltype_r2) |> 
   pivot_wider(values_from = freq_r2_comp, names_from = time_point, values_fill = 0) |>
-  pivot_longer(cols = c('Pre', 'Post'), names_to = 'time_point', values_to = 'freq_r2_comp') |> 
+  pivot_longer(cols = c('Pre', 'On'), names_to = 'time_point', values_to = 'freq_r2_comp') |> 
   select(freq_r2_comp, time_point, patient, celltype_r2) |> 
   merge(stat.test, by = 'celltype_r2') |> 
-  ggplot(aes(x = factor(time_point, levels = c('Pre', 'Post')), y = freq_r2_comp)) +
+  ggplot(aes(x = factor(time_point, levels = c('Pre', 'On')), y = freq_r2_comp)) +
   geom_violin(aes(fill = time_point), alpha = 0.6) +
   geom_boxplot(width = 0.3, alpha = 0.2) +
   geom_line(aes(group = patient), linetype = "dashed", size = 0.2, alpha = 0.3) +
@@ -294,13 +296,13 @@ meta_int |>
         strip.text = element_text(size = 8, margin = margin(2,1,2,1))) +
   guides(fill="none", color = "none",
          color = guide_legend(override.aes = list(size=6))) 
-ggsave('/bigdata/zlin/Melanoma_meta/figures/Change/boxplot_ISG.pdf', width = 10, height = 3.5)
+ggsave('/bigdata/zlin/PanCancer_ICI/figures/Change/boxplot_ISG.pdf', width = 10, height = 3)
 
 freq_mat <- meta_int |> 
   distinct(celltype_r2, sample, .keep_all = T) |> 
   select(freq_r2_comp, dataset, response, modality, int_cat, patient, time_point, celltype_r2) |> 
   pivot_wider(values_from = freq_r2_comp, names_from = time_point, values_fill = 0) |> 
-  pivot_longer(cols = c('Pre', 'Post'), names_to = 'time_point', values_to = 'freq_r2_comp') |> 
+  pivot_longer(cols = c('Pre', 'On'), names_to = 'time_point', values_to = 'freq_r2_comp') |> 
   group_by(celltype_r2) |> 
   mutate(freq_r2_comp_scale = scale(freq_r2_comp)) |> 
   ungroup()
@@ -341,14 +343,14 @@ uni_lmer <- function(freq_mat){
 
 # Modality
 list_res <- split(freq_mat, freq_mat$modality) |> lapply(uni_lmer) 
-pdf('/bigdata/zlin/Melanoma_meta/figures/Change/scatter_modality.pdf', height = 5, width = 6.5)
+pdf('/bigdata/zlin/PanCancer_ICI/figures/Change/scatter_modality.pdf', height = 5, width = 6.5)
 com_celltypes <- intersect(list_res[[1]]$Celltypes, list_res[[2]]$Celltypes)
 list_res[[1]] <- list_res[[1]][match(com_celltypes, list_res[[1]]$Celltypes),]
 list_res[[2]] <- list_res[[2]][match(com_celltypes, list_res[[2]]$Celltypes),]
 dual <- list_res[[1]] |> select(Celltypes, Estimate, CI_lower, CI_upper, pValue) |> rename_with(~ paste0(., "_", names(list_res)[1]), .cols = c("Estimate", "CI_lower", "CI_upper", "pValue"))
 mono <- list_res[[2]] |> select(Celltypes, Estimate, CI_lower, CI_upper, pValue) |> rename_with(~ paste0(., "_", names(list_res)[2]), .cols = c("Estimate", "CI_lower", "CI_upper", "pValue"))
 df <- merge(dual, mono)
-# write.csv(df, file = '/bigdata/zlin/Melanoma_meta/tables/lmer_modality.csv', row.names = F)
+# write.csv(df, file = '/bigdata/zlin/PanCancer_ICI/tables/lmer_modality.csv', row.names = F)
 df |> mutate(celltype_label = ifelse(abs(Estimate_Mono - Estimate_Dual) > 0.2, Celltypes,
                                      ifelse((pValue_Mono < 0.05 & pValue_Dual>= 0.05)|(pValue_Mono >= 0.05 & pValue_Dual < 0.05), Celltypes,
                                             ifelse(pValue_Mono < 0.05 & pValue_Dual<0.05, Celltypes, ''))),
@@ -388,8 +390,8 @@ grid.segments(
   y1 = unit(y_text+0.03, "npc"),
   arrow = arrow(type = "open", length = unit(0.05, "inches"))
 )
-grid.text("Down", x = unit(x1, "npc"), y = unit(y_text, "npc"), gp = gpar(fontsize = 8))
-grid.text("Up", x = unit(x2, "npc"), y = unit(y_text, "npc"), gp = gpar(fontsize = 8))
+grid.text("Pre", x = unit(x1, "npc"), y = unit(y_text, "npc"), gp = gpar(fontsize = 8))
+grid.text("On", x = unit(x2, "npc"), y = unit(y_text, "npc"), gp = gpar(fontsize = 8))
 
 x_text = 0.05
 y1 = 0.17
@@ -408,37 +410,94 @@ grid.segments(
   y1 = unit(y2 + 0.05, "npc"),
   arrow = arrow(type = "open", length = unit(0.05, "inches"))
 )
-grid.text("Down", y = unit(y1, "npc"), x = unit(x_text, "npc"), gp = gpar(fontsize = 8), rot = 90)
-grid.text("Up", y = unit(y2, "npc"), x = unit(x_text, "npc"), gp = gpar(fontsize = 8), rot = 90)
+grid.text("Pre", y = unit(y1, "npc"), x = unit(x_text, "npc"), gp = gpar(fontsize = 8), rot = 90)
+grid.text("On", y = unit(y2, "npc"), x = unit(x_text, "npc"), gp = gpar(fontsize = 8), rot = 90)
 dev.off()
 
-pt_df <- read.csv('/bigdata/zlin/Melanoma_meta/tables/meta_patient.csv')
+res <- do.call(rbind, list_res) |> data.frame()
+subtypes <- res |> 
+  filter(pValue<0.05) |> 
+  pull(Celltypes) |> 
+  unique()
+res <- res |> filter(Celltypes %in% subtypes) |> arrange(desc(Estimate)) |> mutate(group = factor(group, levels = c('Mono', 'Dual')))
+order_row <- res |> 
+  select(Celltypes, Estimate, group) |> 
+  pivot_wider(values_from = 'Estimate', names_from = 'group') |> 
+  mutate(diff = Dual - Mono) |> 
+  arrange(desc(diff), desc(Dual)) |> 
+  pull(Celltypes)
+res$CI_lower[res$CI_lower < -1] <- -1
+res$CI_upper[res$CI_upper > 1] <- 1
+dotCOLS = c("#FDBF6F","#CAB2D6")
+barCOLS = c("#FF7F00","#6A3D9A")
+pdf('/bigdata/zlin/PanCancer_ICI/figures/Change/uni_lmer_modality.pdf', height = 5, width = 5)
+ggplot(res, aes(x= factor(Celltypes, levels = rev(order_row)), y=Estimate, ymin=CI_lower, ymax=CI_upper,col=group, fill=group, size = -log10(fdr))) +
+  #specify position here
+  geom_linerange(size=1,position=position_dodge(width = 0.5)) +
+  geom_hline(yintercept=0, lty=2) +
+  #specify position here too
+  geom_point(shape=21, colour="white", stroke = 0.5, position=position_dodge(width = 0.5)) +
+  scale_size(breaks = c(-log10(0.001), -log10(0.01), -log10(0.05)), labels = c('<0.001', '<0.01', '<0.05'), range = c(0,4)) +
+  scale_fill_manual(values=barCOLS) +
+  scale_color_manual(values=dotCOLS) +
+  scale_y_continuous(name= "Effect Size", limits = c(-1, 1)) + xlab("") +
+  coord_flip() +
+  theme_minimal() +
+  labs(fill = "Modality", color = "Modality", size = "FDR") +
+  guides(size = guide_legend(override.aes = list(fill = "black"))) +
+  theme(plot.margin = unit(c(0.5, 1, 2, 0.5), "lines"),
+        axis.title.x = element_text(margin = margin(t = 2, unit = "lines")),
+        axis.text.y = element_text(size = 9, colour = "black"))
+y_text = 0.14
+x1 = 0.3
+x2 = 0.7
+grid.segments(
+  x = unit(x1 + 0.05, "npc"),
+  x1 = unit(x1 - 0.05, "npc"),
+  y = unit(y_text+0.02, "npc"),
+  y1 = unit(y_text+0.02, "npc"),
+  arrow = arrow(type = "open", length = unit(0.05, "inches"))
+)
+grid.segments(
+  x = unit(x2 - 0.05, "npc"),
+  x1 = unit(x2 + 0.05, "npc"),
+  y = unit(y_text+0.02, "npc"),
+  y1 = unit(y_text+0.02, "npc"),
+  arrow = arrow(type = "open", length = unit(0.05, "inches"))
+)
+grid.text("Pre", x = unit(x1, "npc"), y = unit(y_text, "npc"), gp = gpar(fontsize = 8))
+grid.text("On", x = unit(x2, "npc"), y = unit(y_text, "npc"), gp = gpar(fontsize = 8))
+dev.off() 
+
+
+
+pt_df <- read.csv('/bigdata/zlin/PanCancer_ICI/tables/meta_patient.csv')
 pt_df$tx_ds <- paste0(pt_df$treatment, ' (', pt_df$dataset, ')')
 ct_order <- c('CD4_Naive','CD4_Tm_CREM-','CD4_Tm_AREG','CD4_Tm_TIMP1','CD4_Tm_CAPG','CD4_Tm_CREM', 'CD4_Tm_CCL5', 
-                    'CD4_Tem_GZMK', 'CD4_Temra_CX3CR1', 'CD4_pre-Tfh_CXCR5','CD4_Tfh_CXCR5','CD4_TfhTh1_IFNG', 
-                    'CD4_Treg_Early', 'CD4_Treg_ISG15', 'CD4_Treg_TNFRSF9', 
-                    'CD4_Th_ISG15', 'CD4_Th17_IL26','CD4_Th17_CCR6','CD4_Prolif',
-                    'CD8_Prolif', 'CD8_Naive', 'CD8_Tcm_IL7R', 'CD8_Trm_ZNF683', 'CD8_Tem_Early', 'CD8_Tem_GZMK', 
-                    'CD8_Tpex_TCF7', 'CD8_Tex_GZMK', 'CD8_Tex_CXCL13',
-                    'CD8_Tex_ISG15', 'CD8_Temra_CX3CR1', 'CD8_NK-like', 
-                    'MAIT', 'gdT', 'NK_CD56loCD16hi', 'NK_CD56hiCD16lo',
-                    'B_Naive', 'B_ISG15', 'B_HSP', 'B_MT2A', 'ACB_EGR1', 'ACB_NR4A2', 'ACB_CCR7', 'B_Memory', 'B_AtM',
-                    'GCB_Pre', 'GCB_SUGCT', 'GCB_LMO2', 'GCB_Prolif', 'Plasmablast', 'Plasma_cell',
-                    'Mast','pDC','cDC1', 
-                    'cDC2_CD1C', 'cDC2_IL1B','cDC2_ISG15', 'cDC2_CXCL9', 'DC_LC-like', 'MigrDC', 'MoDC', 
-                    'Mono_CD14', 'Mono_CD14CD16', 'Mono_CD16',
-                    'Macro_IL1B', 'Macro_INHBA', 'Macro_SPP1', 'Macro_FN1', 'Macro_ISG15', 
-                    'Macro_TNF', 'Macro_LYVE1', 'Macro_C1QC', 'Macro_TREM2',
-                    'EC_lymphatic','EC_vascular','EndMT','CAF_inflammatory', 'CAF_adipogenic', 'CAF_PN', 'CAF_AP', 'Myofibroblast')
+              'CD4_Tem_GZMK', 'CD4_Temra_CX3CR1', 'CD4_pre-Tfh_CXCR5','CD4_Tfh_CXCR5','CD4_TfhTh1_IFNG', 
+              'CD4_Treg_Early', 'CD4_Treg_ISG15', 'CD4_Treg_TNFRSF9', 
+              'CD4_Th_ISG15', 'CD4_Th17_IL26','CD4_Th17_CCR6','CD4_Prolif',
+              'CD8_Prolif', 'CD8_Naive', 'CD8_Tcm_IL7R', 'CD8_Trm_ZNF683', 'CD8_Tem_Early', 'CD8_Tem_GZMK', 
+              'CD8_Tpex_TCF7', 'CD8_Tex_GZMK', 'CD8_Tex_CXCL13',
+              'CD8_Tex_ISG15', 'CD8_Temra_CX3CR1', 'CD8_NK-like', 
+              'MAIT', 'gdT', 'NK_CD56loCD16hi', 'NK_CD56hiCD16lo',
+              'B_Naive', 'B_ISG15', 'B_HSP', 'B_MT2A', 'ACB_EGR1', 'ACB_NR4A2', 'ACB_CCR7', 'B_Memory', 'B_AtM',
+              'GCB_Pre', 'GCB_SUGCT', 'GCB_LMO2', 'GCB_Prolif', 'Plasmablast', 'Plasma_cell',
+              'Mast','pDC','cDC1', 
+              'cDC2_CD1C', 'cDC2_IL1B','cDC2_ISG15', 'cDC2_CXCL9', 'DC_LC-like', 'MigrDC', 'MoDC', 
+              'Mono_CD14', 'Mono_CD14CD16', 'Mono_CD16',
+              'Macro_IL1B', 'Macro_INHBA', 'Macro_SPP1', 'Macro_FN1', 'Macro_ISG15', 
+              'Macro_TNF', 'Macro_LYVE1', 'Macro_C1QC', 'Macro_TREM2',
+              'Endo_lymphatic','Endo_artery','Endo_capillary','Endo_tip','Endo_vein',
+              'EndMT','CAF_inflammatory', 'CAF_adipogenic', 'CAF_PN', 'CAF_AP', 'Myofibroblast')
 subtypes <- df |> 
   filter(pValue_Dual < 0.05 | pValue_Mono < 0.05) |> 
   pull(Celltypes) |> 
   factor(levels = ct_order) |> 
   sort() |> 
   as.character()
-meta_int$dataset[meta_int$dataset %in% c('BCC_Yost','SCC_Yost')] <- 'BCC/SCC_Yost'
+meta_int$dataset[meta_int$dataset %in% c('BCC_Yost', 'SCC_Yost')] <- 'BCC/SCC_Yost'
 meta_int$tx_ds <- paste0(meta_int$treatment, ' (', meta_int$dataset, ')')
-# cohort <- 'aPD1(BCC/SCC_Yost)'
 check_and_add_columns <- function(data, columns) {
   for (column in columns) {
     if (!column %in% names(data)) {
@@ -448,8 +507,8 @@ check_and_add_columns <- function(data, columns) {
   return(data)
 }
 cohorts <- c("aPD1 (SKCM_Becker)", "aPD1 (BCC/SCC_Yost)", 
-             "aPD1 (BRCA_Bassez1)", "aPD1 (pre-Chemo)(BRCA_Bassez2)", "aPD1 (TNBC_Shiao)",
-             "aPD1 (HNSC_Luoma)", "aPD1 (CRC_Li)", "aPD1+Chemo (NSCLC_Liu)", 
+             "aPD1 (BRCA_Bassez1)", "aPD1(pre-Chemo) (BRCA_Bassez2)", "aPD1 (TNBC_Shiao)",
+             "aPD1 (HNSC_Luoma)", "aPD1 (CRC_Li)", "aPD1 (CRC_Chen)", "aPD1+Chemo (CRC_Chen)", "aPD1+Chemo (NSCLC_Liu)", 
              "aPDL1+Chemo (TNBC_Zhang)", 
              "aPDL1 (HNSC_Franken)", "aPD1+CTLA4 (HNSC_IMCISION)", "aPDL1+CTLA4 (HNSC_Franken)")
 res_list <- lapply(cohorts, function(cohort){
@@ -463,10 +522,10 @@ res_list <- lapply(cohorts, function(cohort){
       filter(celltype_r2 == subtype) |>
       pivot_wider(names_from = time_point, values_from = freq_r2_comp, values_fill = 0)
     if (nrow(df_sub) >= 3){
-      # Check for columns 'Pre' and 'Post'
-      df_sub <- check_and_add_columns(df_sub, c("Pre", "Post"))
-      t <- t.test(df_sub$Post, df_sub$Pre, paired = T, alternative = 'two.sided')
-      cohen_d <- cohen.d(df_sub$Post, df_sub$Pre, paired = TRUE, hedges.correction = TRUE)
+      # Check for columns 'Pre' and 'On'
+      df_sub <- check_and_add_columns(df_sub, c("Pre", "On"))
+      t <- t.test(df_sub$On, df_sub$Pre, paired = T, alternative = 'two.sided')
+      cohen_d <- cohen.d(df_sub$On, df_sub$Pre, paired = TRUE, hedges.correction = TRUE)
       comp <- c(subtype, t$statistic, t$p.value, cohen_d$estimate)
       return(comp)
     } else {
@@ -486,15 +545,15 @@ colnames(mat_es) <- subtypes
 mat_sig <- res_list |> lapply(function(res){return(res$pvalue)}) 
 mat_sig <- do.call(rbind, mat_sig)
 colnames(mat_sig) <- subtypes
-pdf('/bigdata/zlin/Melanoma_meta/figures/Change/ht_tx_ds.pdf', height = 5, width = 10)
+pdf('/bigdata/zlin/PanCancer_ICI/figures/Change/ht_tx_ds.pdf', height = 5, width = 10)
 Heatmap(mat_es, name = "mat", col = circlize::colorRamp2(c(-0.8, 0, 0.8), c("#154999", "white", "#CF0034")), na_col = 'lightgray',
         cluster_rows = F, cluster_columns = F, column_names_rot = 45, row_names_side = "right", column_names_side = 'bottom',
         heatmap_legend_param = list(title = "Effect Size \n(Cohen's d)", at = c(-0.8, 0, 0.8), labels = c("0.8", "0", "0.8"), legend_direction = "horizontal", legend_side = 'bottom'),
         column_names_gp = gpar(fontsize = 10),
-        row_split = factor(c(rep('Mono',10),rep('Dual',2)), levels = c('Mono','Dual')),
+        row_split = factor(c(rep('Mono',12),rep('Dual',2)), levels = c('Mono','Dual')),
         row_names_gp = gpar(fontsize = 10),
-        width = ncol(mat_es)*unit(6, "mm"), 
-        height = nrow(mat_es)*unit(6, "mm"),
+        width = ncol(mat_es)*unit(6.3, "mm"), 
+        height = nrow(mat_es)*unit(6.3, "mm"),
         cell_fun = function(j, i, x, y, w, h, fill) {
           if(!is.na(mat_sig[i, j]) & mat_sig[i, j] < 0.001) {
             grid.text('***', x, y,gp=gpar(fontsize=15))
@@ -508,17 +567,17 @@ Heatmap(mat_es, name = "mat", col = circlize::colorRamp2(c(-0.8, 0, 0.8), c("#15
         })
 dev.off()
 
-res <- do.call(rbind, list_res) |> data.frame()
 
 list_res <- split(freq_mat, freq_mat$response) |> lapply(uni_lmer) 
-pdf('/bigdata/zlin/Melanoma_meta/figures/Change/scatter_response.pdf', height = 5, width = 6.5)
+names(list_res) <- unique(freq_mat$response)
 com_celltypes <- intersect(list_res[[1]]$Celltypes, list_res[[2]]$Celltypes)
 list_res[[1]] <- list_res[[1]][match(com_celltypes, list_res[[1]]$Celltypes),]
 list_res[[2]] <- list_res[[2]][match(com_celltypes, list_res[[2]]$Celltypes),]
 nr <- list_res[[1]] |> select(Celltypes, Estimate, CI_lower, CI_upper, pValue) |> rename_with(~ paste0(., "_", names(list_res)[1]), .cols = c("Estimate", "CI_lower", "CI_upper", "pValue"))
 re <- list_res[[2]] |> select(Celltypes, Estimate, CI_lower, CI_upper, pValue) |> rename_with(~ paste0(., "_", names(list_res)[2]), .cols = c("Estimate", "CI_lower", "CI_upper", "pValue"))
 df <- merge(nr, re)
-write.csv(df, file = '/bigdata/zlin/Melanoma_meta/tables/lmer_response.csv', row.names = F)
+write.csv(df, file = '/bigdata/zlin/PanCancer_ICI/tables/lmer_response.csv', row.names = F)
+pdf('/bigdata/zlin/PanCancer_ICI/figures/Change/scatter_response.pdf', height = 5, width = 6.5)
 df |> mutate(celltype_label = ifelse(abs(Estimate_RE - Estimate_NR) > 0.2, Celltypes,
                                      ifelse((pValue_RE < 0.05 & pValue_NR>= 0.05)|(pValue_RE >= 0.05 & pValue_NR < 0.05), Celltypes,
                                             ifelse(pValue_RE < 0.05 & pValue_NR<0.05, Celltypes, ''))),
@@ -582,7 +641,7 @@ grid.text("Down", y = unit(y1, "npc"), x = unit(x_text, "npc"), gp = gpar(fontsi
 grid.text("Up", y = unit(y2, "npc"), x = unit(x_text, "npc"), gp = gpar(fontsize = 8), rot = 90)
 dev.off()
 
-pt_df <- read.csv('/bigdata/zlin/Melanoma_meta/tables/meta_patient.csv')
+pt_df <- read.csv('/bigdata/zlin/PanCancer_ICI/tables/meta_patient.csv')
 pt_df$re_ds <- paste0(pt_df$response, ' (', pt_df$dataset, ')')
 ct_order <- c('CD4_Naive','CD4_Tm_CREM-','CD4_Tm_AREG','CD4_Tm_TIMP1','CD4_Tm_CAPG','CD4_Tm_CREM', 'CD4_Tm_CCL5', 
               'CD4_Tem_GZMK', 'CD4_Temra_CX3CR1', 'CD4_pre-Tfh_CXCR5','CD4_Tfh_CXCR5','CD4_TfhTh1_IFNG', 
@@ -599,7 +658,8 @@ ct_order <- c('CD4_Naive','CD4_Tm_CREM-','CD4_Tm_AREG','CD4_Tm_TIMP1','CD4_Tm_CA
               'Mono_CD14', 'Mono_CD14CD16', 'Mono_CD16',
               'Macro_IL1B', 'Macro_INHBA', 'Macro_SPP1', 'Macro_FN1', 'Macro_ISG15', 
               'Macro_TNF', 'Macro_LYVE1', 'Macro_C1QC', 'Macro_TREM2',
-              'EC_lymphatic','EC_vascular','EndMT','CAF_inflammatory', 'CAF_adipogenic', 'CAF_PN', 'CAF_AP', 'Myofibroblast')
+              'Endo_lymphatic','Endo_artery','Endo_capillary','Endo_tip','Endo_vein',
+              'EndMT','CAF_inflammatory', 'CAF_adipogenic', 'CAF_PN', 'CAF_AP', 'Myofibroblast')
 subtypes <- df |> 
   filter(pValue_RE < 0.05 | pValue_NR < 0.05) |> 
   pull(Celltypes) |> 
@@ -616,12 +676,12 @@ check_and_add_columns <- function(data, columns) {
   }
   return(data)
 }
-# cohorts <- pt_df |> janitor::tabyl(re_ds) |> filter(n>2) |> pull(re_ds)
-cohorts <- c("NR (SKCM_Becker)", "NR (BCC/SCC_Yost)", 
-             "NR (BRCA_Bassez1)", "NR (BRCA_Bassez2)","NR (TNBC_Shiao)", "NR (TNBC_Zhang)",
-             "NR (HNSC_Franken)", "NR (HNSC_IMCISION)", "NR (HNSC_Luoma)",
-             "RE (BCC/SCC_Yost)", "RE (BRCA_Bassez1)", "RE (BRCA_Bassez2)","RE (TNBC_Shiao)",
-             "RE (HNSC_Franken)", "RE (HNSC_IMCISION)", "RE (CRC_Li)", "RE (NSCLC_Liu)")
+cohorts <- pt_df |> janitor::tabyl(re_ds) |> filter(n>2) |> pull(re_ds)
+# cohorts <- c("NR (SKCM_Becker)", "NR (BCC/SCC_Yost)",
+#              "NR (BRCA_Bassez1)", "NR (BRCA_Bassez2)","NR (TNBC_Shiao)", "NR (TNBC_Zhang)",
+#              "NR (HNSC_Franken)", "NR (HNSC_IMCISION)", "NR (HNSC_Luoma)",
+#              "RE (BCC/SCC_Yost)", "RE (BRCA_Bassez1)", "RE (BRCA_Bassez2)","RE (TNBC_Shiao)",
+#              "RE (HNSC_Franken)", "RE (HNSC_IMCISION)", "RE (CRC_Li)", "RE (NSCLC_Liu)")
 res_list <- lapply(cohorts, function(cohort){
   print(cohort)
   df <- filter(meta_int, re_ds == cohort) |> 
@@ -633,10 +693,10 @@ res_list <- lapply(cohorts, function(cohort){
       filter(celltype_r2 == subtype) |>
       pivot_wider(names_from = time_point, values_from = freq_r2_comp, values_fill = 0)
     if (nrow(df_sub) >= 3){
-      # Check for columns 'Pre' and 'Post'
-      df_sub <- check_and_add_columns(df_sub, c("Pre", "Post"))
-      t <- t.test(df_sub$Post, df_sub$Pre, paired = T, alternative = 'two.sided')
-      cohen_d <- cohen.d(df_sub$Post, df_sub$Pre, paired = TRUE, hedges.correction = TRUE)
+      # Check for columns 'Pre' and 'On'
+      df_sub <- check_and_add_columns(df_sub, c("Pre", "On"))
+      t <- t.test(df_sub$On, df_sub$Pre, paired = T, alternative = 'two.sided')
+      cohen_d <- cohen.d(df_sub$On, df_sub$Pre, paired = TRUE, hedges.correction = TRUE)
       comp <- c(subtype, t$statistic, t$p.value, cohen_d$estimate)
       return(comp)
     } else {
@@ -656,15 +716,15 @@ colnames(mat_es) <- subtypes
 mat_sig <- res_list |> lapply(function(res){return(res$pvalue)}) 
 mat_sig <- do.call(rbind, mat_sig)
 colnames(mat_sig) <- subtypes
-pdf('/bigdata/zlin/Melanoma_meta/figures/Change/ht_re_ds.pdf', height = 6, width = 10)
+pdf('/bigdata/zlin/PanCancer_ICI/figures/Change/ht_re_ds.pdf', height = 6, width = 10)
 Heatmap(mat_es, name = "mat", col = circlize::colorRamp2(c(-0.8, 0, 0.8), c("#154999", "white", "#CF0034")), na_col = 'lightgray',
         cluster_rows = F, cluster_columns = F, column_names_rot = 45, row_names_side = "right", column_names_side = 'bottom',
         heatmap_legend_param = list(title = "Effect Size \n(Cohen's d)", at = c(-0.8, 0, 0.8), labels = c("0.8", "0", "0.8"), legend_direction = "horizontal", legend_side = 'bottom'),
         column_names_gp = gpar(fontsize = 10),
-        row_split = factor(c(rep('Non-responder',9),rep('Responder',8)), levels = c('Non-responder','Responder')),
+        row_split = factor(c(rep('Non-responder',10),rep('Responder',9)), levels = c('Non-responder','Responder')),
         row_names_gp = gpar(fontsize = 10),
-        width = ncol(mat_es)*unit(6, "mm"), 
-        height = nrow(mat_es)*unit(6, "mm"),
+        width = ncol(mat_es)*unit(6.5, "mm"), 
+        height = nrow(mat_es)*unit(6.5, "mm"),
         cell_fun = function(j, i, x, y, w, h, fill) {
           if(!is.na(mat_sig[i, j]) & mat_sig[i, j] < 0.001) {
             grid.text('***', x, y,gp=gpar(fontsize=15))
@@ -681,59 +741,7 @@ dev.off()
 
 
 
-subtypes <- res |> 
-  filter(pValue<0.05) |> 
-  pull(Celltypes) |> 
-  unique()
-res <- res |> filter(Celltypes %in% subtypes) |> arrange(desc(Estimate)) |> mutate(group = factor(group, levels = c('Mono', 'Dual')))
-order_row <- res |> 
-  select(Celltypes, Estimate, group) |> 
-  pivot_wider(values_from = 'Estimate', names_from = 'group') |> 
-  mutate(diff = Dual - Mono) |> 
-  arrange(desc(diff), desc(Dual)) |> 
-  pull(Celltypes)
-res$CI_lower[res$CI_lower < -1] <- -1
-res$CI_upper[res$CI_upper > 1] <- 1
-dotCOLS = c("#FDBF6F","#CAB2D6")
-barCOLS = c("#FF7F00","#6A3D9A")
-pdf('/bigdata/zlin/Melanoma_meta/figures/Change/uni_lmer_modality.pdf', height = 6, width = 5)
-ggplot(res, aes(x= factor(Celltypes, levels = rev(order_row)), y=Estimate, ymin=CI_lower, ymax=CI_upper,col=group, fill=group, size = -log10(fdr))) +
-  #specify position here
-  geom_linerange(size=1,position=position_dodge(width = 0.5)) +
-  geom_hline(yintercept=0, lty=2) +
-  #specify position here too
-  geom_point(shape=21, colour="white", stroke = 0.5, position=position_dodge(width = 0.5)) +
-  scale_size(breaks = c(-log10(0.001), -log10(0.01), -log10(0.05)), labels = c('<0.001', '<0.01', '<0.05'), range = c(0,4)) +
-  scale_fill_manual(values=barCOLS) +
-  scale_color_manual(values=dotCOLS) +
-  scale_y_continuous(name= "Effect Size", limits = c(-1, 1)) + xlab("") +
-  coord_flip() +
-  theme_minimal() +
-  labs(fill = "Modality", color = "Modality", size = "FDR") +
-  guides(size = guide_legend(override.aes = list(fill = "black"))) +
-  theme(plot.margin = unit(c(0.5, 1, 2, 0.5), "lines"),
-        axis.title.x = element_text(margin = margin(t = 2, unit = "lines")),
-        axis.text.y = element_text(size = 9, colour = "black"))
-y_text = 0.11
-x1 = 0.3
-x2 = 0.7
-grid.segments(
-  x = unit(x1 + 0.05, "npc"),
-  x1 = unit(x1 - 0.05, "npc"),
-  y = unit(y_text+0.02, "npc"),
-  y1 = unit(y_text+0.02, "npc"),
-  arrow = arrow(type = "open", length = unit(0.05, "inches"))
-)
-grid.segments(
-  x = unit(x2 - 0.05, "npc"),
-  x1 = unit(x2 + 0.05, "npc"),
-  y = unit(y_text+0.02, "npc"),
-  y1 = unit(y_text+0.02, "npc"),
-  arrow = arrow(type = "open", length = unit(0.05, "inches"))
-)
-grid.text("Pre", x = unit(x1, "npc"), y = unit(y_text, "npc"), gp = gpar(fontsize = 8))
-grid.text("Post", x = unit(x2, "npc"), y = unit(y_text, "npc"), gp = gpar(fontsize = 8))
-dev.off()
+
 
 # Response
 uni_lmer <- function(freq_mat){
@@ -786,7 +794,7 @@ order_row <- res |>
 res$CI_upper[res$CI_upper >0.6] <- 0.6
 dotCOLS = c("#A6CEE3","#FB9A99")
 barCOLS = c("#1F78B4","#E31A1C")
-pdf('/bigdata/zlin/Melanoma_meta/figures/Change/uni_lmer_response.pdf', height = 6, width = 5)
+pdf('/bigdata/zlin/PanCancer_ICI/figures/Change/uni_lmer_response.pdf', height = 6, width = 5)
 ggplot(res, aes(x= factor(Celltypes, levels = rev(order_row)), y=Estimate, ymin=CI_lower, ymax=CI_upper,col=group, fill=group, size = -log10(fdr))) +
   #specify position here
   geom_linerange(size=1,position=position_dodge(width = 0.5)) +
@@ -799,7 +807,7 @@ ggplot(res, aes(x= factor(Celltypes, levels = rev(order_row)), y=Estimate, ymin=
   scale_y_continuous(name= "Effect Size", limits = c(-0.4, 0.6)) + xlab("") +
   coord_flip() +
   theme_minimal() +
-  labs(fill = "Modality", color = "Modality", size = "FDR") +
+  labs(fill = "Response", color = "Response", size = "FDR") +
   guides(size = guide_legend(override.aes = list(fill = "black"))) +
   theme(plot.margin = unit(c(0.5, 1, 2, 0.5), "lines"),
         axis.title.x = element_text(margin = margin(t = 2, unit = "lines")),
@@ -822,7 +830,7 @@ grid.segments(
   arrow = arrow(type = "open", length = unit(0.05, "inches"))
 )
 grid.text("Pre", x = unit(x1, "npc"), y = unit(y_text, "npc"), gp = gpar(fontsize = 8))
-grid.text("Post", x = unit(x2, "npc"), y = unit(y_text, "npc"), gp = gpar(fontsize = 8))
+grid.text("On", x = unit(x2, "npc"), y = unit(y_text, "npc"), gp = gpar(fontsize = 8))
 dev.off()
 
 # Pre samples

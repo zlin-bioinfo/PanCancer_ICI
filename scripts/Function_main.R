@@ -3,10 +3,10 @@ pkgs <- c('Seurat','tidyr','plyr','dplyr','stringr','ggsci','patchwork','ggplot2
 unlist(lapply(pkgs, function(x) require(package = x,  character.only = TRUE, quietly = TRUE, warn.conflicts = FALSE)))
 options(warn = -1)
 
-datasets <- c('SKCM_Becker', 'BCC_Yost', 'SCC_Yost', 'BRCA_Bassez1', 'BRCA_Bassez2', 'TNBC_Shiao', 'TNBC_Zhang', 'HNSC_IMCISION', 'HNSC_Luoma', 'HNSC_Franken', 'NSCLC_Liu', 'CRC_Li','PCa_Hawley')
-meta_patient <- read.csv('/bigdata/zlin/Melanoma_meta/tables/meta_patient.csv')
+datasets <- c('SKCM_Becker', 'BCC_Yost', 'SCC_Yost', 'BRCA_Bassez1', 'BRCA_Bassez2', 'TNBC_Shiao', 'TNBC_Zhang', 'HNSC_IMCISION', 'HNSC_Luoma', 'HNSC_Franken', 'NSCLC_Liu', 'CRC_Li','CRC_Chen','PCa_Hawley')
+meta_patient <- read.csv('/bigdata/zlin/PanCancer_ICI/tables/meta_patient.csv')
 # CD4T
-gs_list <- readxl::read_xlsx('/bigdata/zlin/Melanoma_meta/tables/41591_2023_2371_MOESM3_ESM.xlsx', sheet = 7, skip = 1) |> 
+gs_list <- readxl::read_xlsx('/bigdata/zlin/PanCancer_ICI/tables/41591_2023_2371_MOESM3_ESM.xlsx', sheet = 7, skip = 1) |> 
   lapply(function(x){return(x[!is.na(x)])})
 gs_list$Exhaustion <- NULL
 names(gs_list)[names(gs_list  ) == 'OXPHOS'] = 'Oxidative phosphorylation'
@@ -16,7 +16,7 @@ gs_list$`Fatty acid metabolism`[gs_list$`Fatty acid metabolism` == 'ARNTL'] <- '
 gs_list$`Oxidative phosphorylation` <- gsub('\\.', '-', gs_list$`Oxidative phosphorylation`)
 
 list_cd4 <- lapply(datasets, function(dataset){
-  seu <- qread(paste0('/bigdata/zlin/Melanoma_meta/data/', dataset, '/seu_r2.qs')) |> 
+  seu <- qread(paste0('/bigdata/zlin/PanCancer_ICI/data/', dataset, '/seu_r2.qs')) |> 
     subset(subset = celltype_main == 'CD4+T') |> 
     subset(subset = patient %in% c("CRC_Li_P28", "HNSC_Franken_P16", "HNSC_Franken_P20", "SKCM_Becker_P10", "SKCM_Becker_P6"), invert = T) |> 
     AggregateExpression(group.by = c('sample','time_point','patient'), return.seurat = T)  
@@ -34,7 +34,7 @@ df_score$response <- meta_patient$response[match(gsub('-','_',df_score$patient),
 df_score$interval <- meta_patient$interval[match(gsub('-','_',df_score$patient), meta_patient$patient)]
 df_score$int_cat <- ifelse(df_score$interval < 21, '< 21d', '>= 21d')
 df_score$modality <- meta_patient$modality[match(gsub('-','_',df_score$patient), meta_patient$patient)]
-df_score$time_point <- factor(df_score$time_point, levels = c('Pre', 'Post'))
+df_score$time_point <- factor(df_score$time_point, levels = c('Pre', 'On'))
 uni_models <- lapply(names(gs_list), function(geneset){
   print(geneset)
   df_sub <- df_score[c('patient', 'time_point', 'response', 'dataset', 'int_cat', 'modality', geneset)]
@@ -59,9 +59,10 @@ uni_models <- lapply(names(gs_list), function(geneset){
   )
 })
 res <- do.call(rbind,uni_models) |> arrange(desc(Estimate))
+write.csv(res, file = '/bigdata/zlin/PanCancer_ICI/tables/lmer_cd4t.csv', row.names = F)
 res$p_cat <- '< 0.05'
 res$p_cat[res$pValue>0.05] <- '> 0.05'
-pdf('/bigdata/zlin/Melanoma_meta/figures/Change/uni_lmer_sig_cd4t.pdf', height = 5, width = 5)
+pdf('/bigdata/zlin/PanCancer_ICI/figures/Change/uni_lmer_sig_cd4t.pdf', height = 5, width = 5)
 p <- ggplot(res, aes(x= factor(Signature, levels = rev(res$Signature)), y=Estimate, ymin=CI_lower, ymax=CI_upper, size = -log10(pValue))) +
   geom_linerange(color = "#83000A",size=1, position=position_dodge(width = 0.5)) + # 3E5600
   geom_hline(yintercept=0, lty=2) +
@@ -94,11 +95,11 @@ grid.segments(
   arrow = arrow(type = "open", length = unit(0.05, "inches"))
 )
 grid.text("Pre", x = unit(0.47, "npc"), y = unit(0.1, "npc"), gp = gpar(fontsize = 8))
-grid.text("Post", x = unit(0.87, "npc"), y = unit(0.1, "npc"), gp = gpar(fontsize = 8))
+grid.text("On", x = unit(0.87, "npc"), y = unit(0.1, "npc"), gp = gpar(fontsize = 8))
 dev.off()
 
 # CD8T
-gs_list <- readxl::read_xlsx('/bigdata/zlin/Melanoma_meta/tables/41591_2023_2371_MOESM3_ESM.xlsx', sheet = 5, skip = 1) |> 
+gs_list <- readxl::read_xlsx('/bigdata/zlin/PanCancer_ICI/tables/41591_2023_2371_MOESM3_ESM.xlsx', sheet = 5, skip = 1) |> 
   lapply(function(x){return(x[!is.na(x)])})
 names(gs_list)[names(gs_list) == 'Activation:Effector function'] <- 'Activation/Effector function'
 names(gs_list)[names(gs_list) == 'TCR Signaling'] = 'TCR signaling'
@@ -106,7 +107,7 @@ names(gs_list)[names(gs_list) == 'IFN Response'] = 'IFN response'
 gs_list$`IFN response`[gs_list$`IFN response` == 'DDX58'] <- 'RIGI'
 gs_list$`Oxidative phosphorylation` <- gsub('\\.', '-', gs_list$`Oxidative phosphorylation`)
 list_cd8 <- lapply(datasets, function(dataset){
-  seu <- qread(paste0('/bigdata/zlin/Melanoma_meta/data/', dataset, '/seu_r2.qs')) |> 
+  seu <- qread(paste0('/bigdata/zlin/PanCancer_ICI/data/', dataset, '/seu_r2.qs')) |> 
     subset(subset = celltype_main == 'CD8+T') |> 
     subset(subset =  (celltype_r2 %in% c('gdT', 'MAIT')), invert = T) |> 
     subset(subset = patient %in% c("CRC_Li_P28", "HNSC_Franken_P16", "HNSC_Franken_P20", "SKCM_Becker_P10", "SKCM_Becker_P6"), invert = T) |> 
@@ -124,7 +125,7 @@ df_score$response <- meta_patient$response[match(gsub('-','_',df_score$patient),
 df_score$interval <- meta_patient$interval[match(gsub('-','_',df_score$patient), meta_patient$patient)]
 df_score$int_cat <- ifelse(df_score$interval < 21, '< 21d', '>= 21d')
 df_score$modality <- meta_patient$modality[match(gsub('-','_',df_score$patient), meta_patient$patient)]
-df_score$time_point <- factor(df_score$time_point, levels = c('Pre', 'Post'))
+df_score$time_point <- factor(df_score$time_point, levels = c('Pre', 'On'))
 uni_models <- lapply(names(gs_list), function(geneset){
   print(geneset)
   df_sub <- df_score[c('patient', 'time_point', 'response', 'dataset', 'int_cat', 'modality', geneset)]
@@ -149,9 +150,10 @@ uni_models <- lapply(names(gs_list), function(geneset){
   )
 })
 res <- do.call(rbind,uni_models) |> arrange(desc(Estimate))
+write.csv(res, file = '/bigdata/zlin/PanCancer_ICI/tables/lmer_cd8t.csv', row.names = F)
 res$p_cat <- '< 0.05'
 res$p_cat[res$pValue>0.05] <- '> 0.05'
-pdf('/bigdata/zlin/Melanoma_meta/figures/Change/uni_lmer_sig_cd8t.pdf', height = 5, width = 5)
+pdf('/bigdata/zlin/PanCancer_ICI/figures/Change/uni_lmer_sig_cd8t.pdf', height = 5, width = 5)
 p <- ggplot(res, aes(x= factor(Signature, levels = rev(res$Signature)), y=Estimate, ymin=CI_lower, ymax=CI_upper, size = -log10(pValue))) +
   geom_linerange(color = "#344E7A", size=1, position=position_dodge(width = 0.5)) +
   geom_hline(yintercept=0, lty=2) +
@@ -184,7 +186,7 @@ grid.segments(
   arrow = arrow(type = "open", length = unit(0.05, "inches"))
 )
 grid.text("Pre", x = unit(0.47, "npc"), y = unit(0.09, "npc"), gp = gpar(fontsize = 8))
-grid.text("Post", x = unit(0.87, "npc"), y = unit(0.09, "npc"), gp = gpar(fontsize = 8))
+grid.text("On", x = unit(0.87, "npc"), y = unit(0.09, "npc"), gp = gpar(fontsize = 8))
 dev.off()
 
 # Macrophages
@@ -226,7 +228,7 @@ tnfa <- msigdbr(species = "Homo sapiens", category = 'H') |>
   pull(gene_symbol) |> 
   unique()
 tnfa[tnfa == 'DDX58'] <- 'RIGI'
-sig_mac <- readxl::read_xlsx('/bigdata/zlin/Melanoma_meta/tables/1-s2.0-S0092867421000106-mmc5.xlsx', skip = 1)
+sig_mac <- readxl::read_xlsx('/bigdata/zlin/PanCancer_ICI/tables/1-s2.0-S0092867421000106-mmc5.xlsx', skip = 1)
 sig_mac$M1[sig_mac$M1 == 'IL23'] <- 'IL23A'
 sig_mac$M2[sig_mac$M2 == 'FASL'] <- 'FASLG'
 gs_list <- list(`M1 Signature` = sig_mac$M1[!is.na(sig_mac$M1)],
@@ -243,9 +245,9 @@ gs_list <- list(`M1 Signature` = sig_mac$M1[!is.na(sig_mac$M1)],
                 # `Response to Type I IFN` = ifn1,
                 # `Response to Type II IFN` = ifn2)
 # Dataset names
-datasets <- c('SKCM_Becker', 'BCC_Yost', 'BRCA_Bassez1', 'BRCA_Bassez2', 'TNBC_Shiao', 'TNBC_Zhang', 'HNSC_IMCISION', 'HNSC_Luoma', 'HNSC_Franken', 'CRC_Li','PCa_Hawley')
+datasets <- c('SKCM_Becker', 'BCC_Yost', 'BRCA_Bassez1', 'BRCA_Bassez2', 'TNBC_Shiao', 'TNBC_Zhang', 'HNSC_IMCISION', 'HNSC_Luoma', 'HNSC_Franken', 'CRC_Li','CRC_Chen','PCa_Hawley')
 list_mac <- lapply(datasets, function(dataset){
-  seu <- qread(paste0('/bigdata/zlin/Melanoma_meta/data/', dataset, '/seu_r2.qs')) |> 
+  seu <- qread(paste0('/bigdata/zlin/PanCancer_ICI/data/', dataset, '/seu_r2.qs')) |> 
     subset(subset = celltype_main == 'Macro') |> 
     subset(subset = patient %in% c("CRC_Li_P28", "HNSC_Franken_P16", "HNSC_Franken_P20", "SKCM_Becker_P10", "SKCM_Becker_P6"), invert = T) |> 
     AggregateExpression(group.by = c('sample','time_point','patient'), return.seurat = T)  
@@ -262,7 +264,7 @@ rownames(df_score) <- NULL
 df_score$interval <- meta_patient$interval[match(gsub('-','_',df_score$patient), meta_patient$patient)]
 df_score$int_cat <- ifelse(df_score$interval < 21, '< 21d', '>= 21d')
 df_score$modality <- meta_patient$modality[match(gsub('-','_',df_score$patient), meta_patient$patient)]
-df_score$time_point <- factor(df_score$time_point, levels = c('Pre', 'Post'))
+df_score$time_point <- factor(df_score$time_point, levels = c('Pre', 'On'))
 
 uni_models <- lapply(names(gs_list), function(geneset){
   print(geneset)
@@ -288,9 +290,10 @@ uni_models <- lapply(names(gs_list), function(geneset){
   )
 })
 res <- do.call(rbind,uni_models) |> arrange(desc(Estimate))
+write.csv(res, file = '/bigdata/zlin/PanCancer_ICI/tables/lmer_mac.csv', row.names = F)
 res$p_cat <- '< 0.05'
 res$p_cat[res$pValue>0.05] <- '> 0.05'
-pdf('/bigdata/zlin/Melanoma_meta/figures/Change/uni_lmer_sig_macro.pdf', height = 4, width = 4.5)
+pdf('/bigdata/zlin/PanCancer_ICI/figures/Change/uni_lmer_sig_macro.pdf', height = 4, width = 4.5)
 p <- ggplot(res, aes(x= factor(Signature, levels = rev(res$Signature)), y=Estimate, ymin=CI_lower, ymax=CI_upper, size = -log10(pValue))) +
   geom_linerange(color = "#3E5600",size=1, position=position_dodge(width = 0.5)) +
   geom_hline(yintercept=0, lty=2) +
@@ -326,7 +329,7 @@ grid.segments(
   arrow = arrow(type = "open", length = unit(0.05, "inches"))
 )
 grid.text("Pre", x = unit(x1, "npc"), y = unit(y_text, "npc"), gp = gpar(fontsize = 8))
-grid.text("Post", x = unit(x2, "npc"), y = unit(y_text, "npc"), gp = gpar(fontsize = 8))
+grid.text("On", x = unit(x2, "npc"), y = unit(y_text, "npc"), gp = gpar(fontsize = 8))
 dev.off()
 
 

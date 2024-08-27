@@ -1,11 +1,11 @@
 rm(list=ls())
-pkgs <- c('Seurat','tidyr','plyr','dplyr','stringr','SingleR','ggsci','dior','tibble','qs','BiocParallel','scGate','Matrix','SingleCellExperiment','scran','parallel','scGate')
+pkgs <- c('Seurat','tidyr','plyr','dplyr','stringr','SingleR','ggsci','dior','tibble','qs','BiocParallel','Matrix','SingleCellExperiment','scran','parallel','scGate')
 unlist(lapply(pkgs, function(x) require(package = x,  character.only = TRUE, quietly = TRUE, warn.conflicts = FALSE)))
 options(warn = -1)
 
 # Reference Preparation
 # Myeloids (normalized)
-directory <- '/bigdata/zlin/Melanoma_meta/data/GSE154763/'
+directory <- '/bigdata/zlin/PanCancer_ICI/data/GSE154763/'
 file_list <- list.files(directory, pattern="expression.csv$")[-1]
 expression_list <- lapply(file_list, function(x){t(read.csv(paste0(directory, x), row.names = 1))})
 meta_list <- list.files(directory, pattern="metadata.csv$")[-1]
@@ -21,7 +21,7 @@ for (i in 1:length(file_list)){
   ref_list <- c(ref_list, sce)
 }
 ref_major <- lapply(ref_list, function(x){aggregateReference(x, x$majortype)})
-qsave(ref_major, "/bigdata/zlin/Melanoma_meta/data/Ref_SingleR/Myeloids_major_ref.qs")
+qsave(ref_major, "/bigdata/zlin/PanCancer_ICI/data/Ref_SingleR/Myeloids_major_ref.qs")
 ref_mono <- list()
 for (i in 1:length(ref_list)){
   sce <- ref_list[[i]]
@@ -29,7 +29,7 @@ for (i in 1:length(ref_list)){
   sce <- aggregateReference(sce, sce$subtype)
   ref_mono <- c(ref_mono, sce)
 }
-qsave(ref_mono, "/bigdata/zlin/Melanoma_meta/data/Ref_SingleR/Myeloids_mono_ref.qs")
+qsave(ref_mono, "/bigdata/zlin/PanCancer_ICI/data/Ref_SingleR/Myeloids_mono_ref.qs")
 ref_macro <- list()
 for (i in 1:length(ref_list)){
   sce <- ref_list[[i]]
@@ -37,7 +37,7 @@ for (i in 1:length(ref_list)){
   sce <- aggregateReference(sce, sce$subtype)
   ref_macro <- c(ref_macro, sce)
 }
-qsave(ref_macro, "/bigdata/zlin/Melanoma_meta/data/Ref_SingleR/Myeloids_macro_ref.qs")
+qsave(ref_macro, "/bigdata/zlin/PanCancer_ICI/data/Ref_SingleR/Myeloids_macro_ref.qs")
 # cDC2
 expr <- list.files(directory, pattern="expression.csv$")[1]
 expr <- t(read.csv(paste0(directory, expr), row.names = 1))
@@ -51,12 +51,12 @@ for (i in 1:length(unique(sce$cancer))){
   sce_sub <- aggregateReference(sce_sub, sce_sub$subtype)
   ref_cdc2 <- c(ref_cdc2, sce_sub)
 }
-qsave(ref_cdc2, "/bigdata/zlin/Melanoma_meta/data/Ref_SingleR/Myeloids_cdc2_ref.qs")
+qsave(ref_cdc2, "/bigdata/zlin/PanCancer_ICI/data/Ref_SingleR/Myeloids_cdc2_ref.qs")
 
 #T/NK (counts)
-file_list <- list.files("/bigdata/zlin/Melanoma_meta/data/GSE156728(ref_Tcell)/", pattern = 'counts', full.names = T)
+file_list <- list.files("/bigdata/zlin/PanCancer_ICI/data/GSE156728(ref_Tcell)/", pattern = 'counts', full.names = T)
 cancertype <- unique(str_split(file_list,'_',simplify = T)[,4])
-df_metadata <- data.table::fread('/bigdata/zlin/Melanoma_meta/data/GSE156728(ref_Tcell)/GSE156728_metadata.txt.gz') %>%
+df_metadata <- data.table::fread('/bigdata/zlin/PanCancer_ICI/data/GSE156728(ref_Tcell)/GSE156728_metadata.txt.gz') %>%
   filter(cancerType %in% cancertype, loc=='T') %>% 
   column_to_rownames(var = 'cellID')
 df_metadata$meta.cluster <- str_replace_all(df_metadata$meta.cluster, '\\.', '_')
@@ -117,7 +117,7 @@ ref_T <- lapply(ref_list_T, function(sce){
   sce <- logNormCounts(sce) %>% aggregateReference(.$major)
   return(sce)
 })
-qsave(ref_T, "/bigdata/zlin/Melanoma_meta/data/Ref_SingleR/T_ref.qs")
+qsave(ref_T, "/bigdata/zlin/PanCancer_ICI/data/Ref_SingleR/T_ref.qs")
 
 # Fine level
 ref_CD4 <- lapply(file_list[str_detect(file_list, 'CD4')], function(x){
@@ -128,7 +128,7 @@ ref_CD4 <- lapply(file_list[str_detect(file_list, 'CD4')], function(x){
   sce <- SingleCellExperiment(assay = list(counts = matrix_count), colData = matrix_meta[colnames(matrix_count),]) %>% logNormCounts() %>% aggregateReference(.$meta.cluster)
   return(sce)
 })
-qsave(ref_CD4, "/bigdata/zlin/Melanoma_meta/data/Ref_SingleR/T_CD4_ref.qs")
+qsave(ref_CD4, "/bigdata/zlin/PanCancer_ICI/data/Ref_SingleR/T_CD4_ref.qs")
 
 ref_CD8 <- lapply(file_list[str_detect(file_list, 'CD8')], function(x){
   cancertype <- unique(str_split(x,'_',simplify = T)[,4])
@@ -138,10 +138,10 @@ ref_CD8 <- lapply(file_list[str_detect(file_list, 'CD8')], function(x){
   sce <- SingleCellExperiment(assay = list(counts = matrix_count), colData = matrix_meta[colnames(matrix_count),]) %>% logNormCounts() %>% aggregateReference(.$meta.cluster)
   return(sce)
 })
-qsave(ref_CD8, "/bigdata/zlin/Melanoma_meta/data/Ref_SingleR/T_CD8_ref.qs")
+qsave(ref_CD8, "/bigdata/zlin/PanCancer_ICI/data/Ref_SingleR/T_CD8_ref.qs")
 
 # NK
-data_dir <- '/bigdata/zlin/Melanoma_meta/data/GSE212890(ref_NK)/'
+data_dir <- '/bigdata/zlin/PanCancer_ICI/data/GSE212890(ref_NK)/'
 list.files(data_dir) 
 matrix_count <- readMM(paste0(data_dir, list.files(data_dir)[str_detect(list.files(data_dir) , 'counts')])) 
 features <- read.csv(paste0(data_dir, list.files(data_dir)[str_detect(list.files(data_dir) , 'genes')]))
@@ -164,19 +164,20 @@ ref_main_NK <- lapply(ref_NK, function(x) {
   sce <- logNormCounts(x) %>% aggregateReference(.$Majortype)
   return(sce)
 })
-qsave(ref_main_NK, "/bigdata/zlin/Melanoma_meta/data/Ref_SingleR/NK_main_ref.qs")
+qsave(ref_main_NK, "/bigdata/zlin/PanCancer_ICI/data/Ref_SingleR/NK_main_ref.qs")
 ref_fine_NK <- lapply(ref_NK, function(x) {
   sce <- logNormCounts(x) %>% aggregateReference(.$celltype)
   return(sce)
 })
-qsave(ref_fine_NK, "/bigdata/zlin/Melanoma_meta/data/Ref_SingleR/NK_fine_ref.qs")
+qsave(ref_fine_NK, "/bigdata/zlin/PanCancer_ICI/data/Ref_SingleR/NK_fine_ref.qs")
 
 # CAFs
-metadata <- read.table(gzfile('/bigdata/zlin/Melanoma_meta/data/GSE210347(ref_CAF)/GSE210347_meta.txt.gz'), row.names = 1, header = T) %>%
+metadata <- read.table(gzfile('/bigdata/zlin/PanCancer_ICI/data/GSE210347(ref_CAF)/GSE210347_meta.txt.gz'), row.names = 1, header = T) %>%
   filter(cluster %in% c('c1','c2','c4','c6','c7','c8'), group == 'Tumor')
 metadata$cluster <- mapvalues(metadata$cluster,from = c('c1','c2','c4','c6','c7','c8'),
                               to = c('Myofibroblast','CAF_inflammatory','CAF_adipogenic','CAF_EndMT','CAF_PN','CAF_AP'))
-matrix_count <- readRDS('/bigdata/zlin/Melanoma_meta/data/GSE210347(ref_CAF)/GSE210347_counts.Rds')[, rownames(metadata)]
+matrix_count <- readRDS('/bigdata/zlin/PanCancer_ICI/data/GSE210347(ref_CAF)/GSE210347_counts.Rds')[, rownames(metadata)]
+caf_ref <- CreateSeuratObject(counts = matrix_count, meta.data = metadata)
 sce <- SingleCellExperiment(assay = list(counts = matrix_count), colData = metadata)
 sce$dataset <- str_split(sce$SampleID, "_", simplify = T)[,1]
 dataset <- unique(sce$dataset)
@@ -185,67 +186,122 @@ ref_CAF <- lapply(dataset, function(x) {
   sce <- logNormCounts(sce) %>% aggregateReference(.$cluster)
   return(sce)
 })
-qsave(ref_CAF, "/bigdata/zlin/Melanoma_meta/data/Ref_SingleR/CAF_ref.qs")
+qsave(ref_CAF, "/bigdata/zlin/PanCancer_ICI/data/Ref_SingleR/CAF_ref.qs")
 
-# Endothelial (GSE164690)
-# 15 samples had paired immune and non-immune cells, as well as matched peripheral blood leukocytes (PBL).
-neg <- paste0('HN', c('01','05','06','07','08','09','10','11','15'))
-cd45n_neg <- paste0(neg, '_', 'CD45n')
-folders <- file.path(paste0('/bigdata/zlin/data/GSE164690/', cd45n_neg))
-seu_list <- lapply(folders, function(folder){
-  CreateSeuratObject(counts = Read10X(folder))
+# DotPlot(endo_main, group.by = 'celltype', features = c('PROX1', 'LYVE1','FLT4','CCL21',
+#                                                            'VWF','PECAM1','PLVAP','CDH5',
+#                                                            'S100A4','COL1A2','CDH11',
+#                                                            'FAP','MMP11','COL11A1','POSTN',
+#                                                            'FBLN1','IGFBP6','CFD','PTGDS',
+#                                                            'S100B','GPM6B','LGI4','PLP1',
+#                                                            'HLA-DRA','HLA-DPB1','LYZ','TYROBP',
+#                                                            'RGS5','NDUFA4L2','MYH11','ACTA2')) + RotatedAxis()
+
+# CAF
+metadata <- read.table(gzfile('/bigdata/zlin/PanCancer_ICI/data/GSE210347(ref_CAF)/GSE210347_meta.txt.gz'), row.names = 1, header = T) %>%
+  filter(cluster %in% c('c1','c2','c4','c6','c7','c8'), group == 'Tumor')
+metadata$cluster <- mapvalues(metadata$cluster,from = c('c1','c2','c4','c6','c7','c8'),
+                              to = c('Myofibroblast','CAF_inflammatory','CAF_adipogenic','CAF_EndMT','CAF_PN','CAF_AP'))
+matrix_count <- readRDS('/bigdata/zlin/PanCancer_ICI/data/GSE210347(ref_CAF)/GSE210347_counts.Rds')[, rownames(metadata)]
+seu <- CreateSeuratObject(counts = matrix_count, meta.data = metadata)
+seu$dataset <- str_split(seu$SampleID, "_", simplify = T)[,1]
+sce <- seu |> as.SingleCellExperiment() |> logNormCounts() 
+sce <- sce |> aggregateReference(sce$cluster)
+qsave(sce, file = '/bigdata/zlin/PanCancer_ICI/data/Ref_SingleR/Fibro.qs')
+
+# Pan-cancer Endothelial cells
+seu <- schard::h5ad2seurat('/bigdata/zlin//PanCancer_ICI/data/pan-cancer_Endo/NSR.panE.exprs.all.h5ad.gz')
+metadata <- read.csv('/bigdata/zlin/PanCancer_ICI/data/pan-cancer_Endo/NSR.panE.obs.meta.csv', row.names = 1)
+seu <- CreateSeuratObject(counts = seu@assays$RNA@counts, meta.data = metadata)
+seu <- subset(seu, subset = tissue == 'T')
+seu$major <- ifelse(seu$cellType.major %in% c('veins', 'hypoxia', 'tip cell', 'arteries', 'capillaries'), 'vascular', seu$cellType.major)
+ref_list <- lapply(unique(seu$Dataset), function(dataset){
+  print(dataset)
+  sce <- subset(seu, subset = Dataset == dataset) |> 
+    as.SingleCellExperiment() |> 
+    logNormCounts() 
+  sce <- sce |> aggregateReference(labels = sce$major)
+  return(sce)
 })
-seu <- merge(seu_list[[1]], y= seu_list[-1]) 
-seu <- PercentageFeatureSet(seu, "^MT-", col.name = "percent_mito") %>% 
-  subset(subset = nFeature_RNA > 200 & nFeature_RNA < 6000 & percent_mito < 20) %>% 
-  NormalizeData() %>%
-  FindVariableFeatures()%>%
-  ScaleData() %>%
-  RunPCA() %>%
-  RunUMAP(dims = 1:20) %>%
-  FindNeighbors(dims = 1:10) %>%
-  FindClusters(resolution = 0.3)
-genes_to_check = list(c('DCN', 'COL1A1', 'COL1A2'), #Fibroblast
-                      c('ACTA2','VIM','FN1','DES'),
-                      c('PECAM1', 'VWF', 'ENG'), # Endothelial cells
-                      c('KRT17', 'EPCAM', 'KRT19', 'KRT14','AXL')) # Epithelial cells
-names(genes_to_check) <- c('Fibroblast','Myofibroblast','Endothelial','Epithelial')
-DimPlot(seu)
-DotPlot(seu, group.by = 'seurat_clusters',
-        features = genes_to_check) + RotatedAxis()
-seu$celltype <- 'Unresolved'
-seu$celltype[seu$RNA_snn_res.0.3 %in% c('2','8','12')] <- 'CAF'
-seu$celltype[seu$RNA_snn_res.0.3 %in% c('8')] <- 'Myo'
-seu$celltype[seu$RNA_snn_res.0.3 %in% c('1','3','10','14')] <- 'EC'
-seu$celltype[seu$RNA_snn_res.0.3 %in% c('4','6','7','9')] <- 'Epi'
-DimPlot(seu, group.by = 'celltype')
-seu <- subset(seu, subset = celltype == 'EC') %>% 
-  NormalizeData() %>%
-  FindVariableFeatures()%>%
-  ScaleData() %>%
-  RunPCA() %>%
-  RunUMAP(dims = 1:20) %>%
-  FindNeighbors(dims = 1:10) %>%
-  FindClusters(resolution = 0.3)
-DimPlot(seu)
-genes_to_check = list(c("IGFBP3","FN1","DLL4", "HEY2", "EFNB2", "NOTCH1", "ROBO4","SEMA3G","PLVAP"), 
-                      c("PECAM1", "CD34", "VWF", "CLDN5","COL15A1"), 
-                      c("ACKR1", "KDR", "NR2F2","SELE","CYP1B1"),
-                      c(t)
-) 
-names(genes_to_check) <- c('Arterial','Capillary','Venous','Lymphatic','EndMT')
-DotPlot(seu, group.by = 'seurat_clusters', features = genes_to_check) + RotatedAxis()
-seu$subtype <- 'Unresolved'
-seu$subtype[seu$RNA_snn_res.0.3 %in% c('8')] <- 'EC_EndMT'
-seu$subtype[seu$RNA_snn_res.0.3 %in% c('0','2','3','6')] <- 'EC_lymphatic'
-seu$subtype[seu$RNA_snn_res.0.3 %in% c('1','4','5','7')] <- 'EC_vascular'
-DimPlot(seu, group.by = 'subtype')
-ref_Endo <- as.SingleCellExperiment(seu) %>% logNormCounts() %>% aggregateReference(.$subtype)
-qsave(ref_Endo, "/bigdata/zlin/Melanoma_meta/data/Ref_SingleR/Endo_ref.qs")
+qsave(ref_list, file = '/bigdata/zlin/PanCancer_ICI/data/Ref_SingleR/Endo_major.qs')
+# Endo_vascular
+ref_list <- lapply(unique(seu$Dataset), function(dataset){
+  print(dataset)
+  sce <- subset(seu, subset = seu$cellType.major %in% c('veins', 'tip cell', 'arteries', 'capillaries') & Dataset == dataset) |> 
+    as.SingleCellExperiment() |> 
+    logNormCounts() 
+  sce <- sce |> aggregateReference(labels = sce$cellType.major)
+  return(sce)
+})
+qsave(ref_list, file = '/bigdata/zlin/PanCancer_ICI/data/Ref_SingleR/Endo_vascular.qs')
+# Mural cells
+endo_mc <- readRDS('/bigdata/zlin/PanCancer_ICI/data/ref_Endo/panMC.rds')
+endo_mc$dataset <- str_split(endo_mc$DonorID, '_', simplify = T)[,1]
+sce <- endo_mc |> 
+  as.SingleCellExperiment() |> 
+  logNormCounts() 
+sce <- sce |> aggregateReference(labels = sce$Anno_Tier1)
+qsave(sce, file = '/bigdata/zlin/PanCancer_ICI/data/Ref_SingleR/Mural_ref.qs')
+
+# # Endothelial (GSE164690)
+# # 15 samples had paired immune and non-immune cells, as well as matched peripheral blood leukocytes (PBL).
+# neg <- paste0('HN', c('01','05','06','07','08','09','10','11','15'))
+# cd45n_neg <- paste0(neg, '_', 'CD45n')
+# folders <- file.path(paste0('/bigdata/zlin/data/GSE164690/', cd45n_neg))
+# seu_list <- lapply(folders, function(folder){
+#   CreateSeuratObject(counts = Read10X(folder))
+# })
+# seu <- merge(seu_list[[1]], y= seu_list[-1]) 
+# seu <- PercentageFeatureSet(seu, "^MT-", col.name = "percent_mito") %>% 
+#   subset(subset = nFeature_RNA > 200 & nFeature_RNA < 6000 & percent_mito < 20) %>% 
+#   NormalizeData() %>%
+#   FindVariableFeatures()%>%
+#   ScaleData() %>%
+#   RunPCA() %>%
+#   RunUMAP(dims = 1:20) %>%
+#   FindNeighbors(dims = 1:10) %>%
+#   FindClusters(resolution = 0.3)
+# genes_to_check = list(c('DCN', 'COL1A1', 'COL1A2'), #Fibroblast
+#                       c('ACTA2','VIM','FN1','DES'),
+#                       c('PECAM1', 'VWF', 'ENG'), # Endothelial cells
+#                       c('KRT17', 'EPCAM', 'KRT19', 'KRT14','AXL')) # Epithelial cells
+# names(genes_to_check) <- c('Fibroblast','Myofibroblast','Endothelial','Epithelial')
+# DimPlot(seu)
+# DotPlot(seu, group.by = 'seurat_clusters',
+#         features = genes_to_check) + RotatedAxis()
+# seu$celltype <- 'Unresolved'
+# seu$celltype[seu$RNA_snn_res.0.3 %in% c('2','8','12')] <- 'CAF'
+# seu$celltype[seu$RNA_snn_res.0.3 %in% c('8')] <- 'Myo'
+# seu$celltype[seu$RNA_snn_res.0.3 %in% c('1','3','10','14')] <- 'EC'
+# seu$celltype[seu$RNA_snn_res.0.3 %in% c('4','6','7','9')] <- 'Epi'
+# DimPlot(seu, group.by = 'celltype')
+# seu <- subset(seu, subset = celltype == 'EC') %>% 
+#   NormalizeData() %>%
+#   FindVariableFeatures()%>%
+#   ScaleData() %>%
+#   RunPCA() %>%
+#   RunUMAP(dims = 1:20) %>%
+#   FindNeighbors(dims = 1:10) %>%
+#   FindClusters(resolution = 0.3)
+# DimPlot(seu)
+# genes_to_check = list(c("IGFBP3","FN1","DLL4", "HEY2", "EFNB2", "NOTCH1", "ROBO4","SEMA3G","PLVAP"), 
+#                       c("PECAM1", "CD34", "VWF", "CLDN5","COL15A1"), 
+#                       c("ACKR1", "KDR", "NR2F2","SELE","CYP1B1"),
+#                       c(t)
+# ) 
+# names(genes_to_check) <- c('Arterial','Capillary','Venous','Lymphatic','EndMT')
+# DotPlot(seu, group.by = 'seurat_clusters', features = genes_to_check) + RotatedAxis()
+# seu$subtype <- 'Unresolved'
+# seu$subtype[seu$RNA_snn_res.0.3 %in% c('8')] <- 'EC_EndMT'
+# seu$subtype[seu$RNA_snn_res.0.3 %in% c('0','2','3','6')] <- 'EC_lymphatic'
+# seu$subtype[seu$RNA_snn_res.0.3 %in% c('1','4','5','7')] <- 'EC_vascular'
+# DimPlot(seu, group.by = 'subtype')
+# ref_Endo <- as.SingleCellExperiment(seu) %>% logNormCounts() %>% aggregateReference(.$subtype)
+# qsave(ref_Endo, "/bigdata/zlin/PanCancer_ICI/data/Ref_SingleR/Endo_ref.qs")
 
 # B cells
-# seu <- readRDS("/bigdata/zlin/Melanoma_meta/data/blueprint_B/scRNA_data/panB_Plasma_cell_selected_scRNA_processed_data.rds")
-seu <- readRDS("/bigdata/zlin/Melanoma_meta/data/blueprint_B/scRNA_data/panB_scRNA_processed_data.rds")
+# seu <- readRDS("/bigdata/zlin/PanCancer_ICI/data/blueprint_B/scRNA_data/panB_Plasma_cell_selected_scRNA_processed_data.rds")
+seu <- readRDS("/bigdata/zlin/PanCancer_ICI/data/blueprint_B/scRNA_data/panB_scRNA_processed_data.rds")
 genes_to_check = c('TCL1A','YBX3','FCER2',
                    'CD27','CD19','IFIT3', 'IFI44L', 'STAT1', 'ISG15',
                    'HSPA1A','DNAJB1','HSPA1B',
@@ -273,7 +329,7 @@ ref_B_major <- lapply(unique(seu$dataid), function(x) {
   sce <- aggregateReference(sce,sce$majortype)
   return(sce)
 })
-qsave(ref_B_major, "/bigdata/zlin/Melanoma_meta/data/Ref_SingleR/Pan_B_major.qs")
+qsave(ref_B_major, "/bigdata/zlin/PanCancer_ICI/data/Ref_SingleR/Pan_B_major.qs")
 
 ref_plasma <- lapply(unique(seu$dataid), function(x) {
   print(x)
@@ -283,7 +339,7 @@ ref_plasma <- lapply(unique(seu$dataid), function(x) {
   sce <- aggregateReference(sce,sce$celltype)
   return(sce)
 })
-qsave(ref_plasma, "/bigdata/zlin/Melanoma_meta/data/Ref_SingleR/Plasma.qs")
+qsave(ref_plasma, "/bigdata/zlin/PanCancer_ICI/data/Ref_SingleR/Plasma.qs")
 
 seu_gcb <- subset(seu, subset = majortype == 'GCB')
 ref_GCB <- lapply(unique(seu_gcb$dataid)[table(seu_gcb$dataid)>50], function(x) {
@@ -294,7 +350,7 @@ ref_GCB <- lapply(unique(seu_gcb$dataid)[table(seu_gcb$dataid)>50], function(x) 
   sce <- aggregateReference(sce,sce$celltype)
   return(sce)
 })
-qsave(ref_GCB, "/bigdata/zlin/Melanoma_meta/data/Ref_SingleR/GCB.qs")
+qsave(ref_GCB, "/bigdata/zlin/PanCancer_ICI/data/Ref_SingleR/GCB.qs")
 
 seu_b <- subset(seu, subset = majortype == 'B')
 ref_B <- lapply(names(table(seu_b$dataid))[table(seu_b$dataid)>50], function(x) {
@@ -305,11 +361,46 @@ ref_B <- lapply(names(table(seu_b$dataid))[table(seu_b$dataid)>50], function(x) 
   sce <- aggregateReference(sce,sce$celltype)
   return(sce)
 })
-qsave(ref_B, "/bigdata/zlin/Melanoma_meta/data/Ref_SingleR/B.qs")
+qsave(ref_B, "/bigdata/zlin/PanCancer_ICI/data/Ref_SingleR/B.qs")
 
+# B cells (GSE233236)
+count_matrix <- Read10X('/bigdata/zlin/PanCancer_ICI/data/GSE233236(ref_B)/', gene.column=1)
+metadata <- data.table::fread('/bigdata/zlin/PanCancer_ICI/data/GSE233236(ref_B)/metadata.tsv.gz')
+metadata <- tibble::column_to_rownames(metadata, var = 'V1')
+seu <- CreateSeuratObject(counts = count_matrix, meta.data = metadata)
+seu <- subset(seu, subset = Tissue == 'Tumor')  
+seu$cluster <- str_split(seu$Annotation, '_', simplify = T)[,1]
+seu$major <- ifelse(seu$cluster %in% c(paste('c', seq(1,9,1), sep = '0'), c('c10','c11')), 'naive/memory',
+                               ifelse(seu$cluster %in% paste0('c', seq(12,15,1)), 'cycling/gc', 'asc'))
+seu$dataset <- str_split(seu$SampleID, '\\.', simplify = T)[,1]
+seu$Annotation <- str_remove(seu$Annotation, "^(c\\d{2}_)")
+ref_list <- lapply(unique(seu$dataset), function(ds){
+  print(ds)
+  sce <- subset(seu, subset = dataset == ds) |> 
+    as.SingleCellExperiment() |> 
+    logNormCounts() 
+  sce <- sce |> aggregateReference(labels = sce$major)
+  return(sce)
+})
+qsave(ref_list, "/bigdata/zlin/PanCancer_ICI/data/Ref_SingleR/Pan_B-major.qs")
 
+sce <- subset(seu, subset = major %in% 'naive/memory') |> 
+  as.SingleCellExperiment() |> 
+  logNormCounts() 
+sce <- sce |> aggregateReference(sce$Annotation)
+qsave(sce, "/bigdata/zlin/PanCancer_ICI/data/Ref_SingleR/B_naive-memory.qs")
 
+sce <- subset(seu, subset = major %in% 'cycling/gc') |> 
+  as.SingleCellExperiment() |> 
+  logNormCounts() 
+sce <- sce |> aggregateReference(sce$Annotation)
+qsave(sce, "/bigdata/zlin/PanCancer_ICI/data/Ref_SingleR/B_cycling-gc.qs")
 
+sce <- subset(seu, subset = major %in% 'asc') |> 
+  as.SingleCellExperiment() |> 
+  logNormCounts() 
+sce <- sce |> aggregateReference(sce$Annotation)
+qsave(sce, "/bigdata/zlin/PanCancer_ICI/data/Ref_SingleR/B_asc.qs")
 
 
 

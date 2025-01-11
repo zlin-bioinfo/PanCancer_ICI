@@ -70,36 +70,53 @@ options(scipen = 100)
 # seu$anno[seu$celltype_major =='Melanoma'] <- seu$patient[seu$celltype_major =='Melanoma']
 # Idents(seu) <- seu$anno
 
-output_dir_full = '/bigdata/zlin/Melanoma_meta/data/SKCM_Becker/infercnv'
+matrix_count <- readRDS('/bigdata/zlin/Melanoma/data/additional_datasets/Bassez/1863-counts_cells_cohort1.rds')
+matrix_meta <- read.csv('/bigdata/zlin/Melanoma/data/additional_datasets/Bassez/1872-BIOKEY_metaData_cohort1_web.csv',row.names = 1)
+matrix_tcr <- read.csv('/bigdata/zlin/PanCancer_ICI/data/BRCA_Bassez1/1879-BIOKEY_barcodes_vdj_combined_cohort1.csv')
+seu <- CreateSeuratObject(matrix_count, meta.data = matrix_meta)
+seu <- subset(seu, subset = patient_id %in% c('BIOKEY_1') & timepoint == 'Pre' & cellType %in% c("Cancer_cell", "Endothelial_cell" , "Myeloid_cell"))
+
+output_dir_full = '/bigdata/zlin/PanCancer_ICI/data/BRCA_Bassez1/infercnv'
 # https://data.broadinstitute.org/Trinity/CTAT/cnv/hg38_gencode_v27.txt
-gene_order <- read.table('/bigdata/zlin/Melanoma_meta/data/hg38_gencode_v27.txt', header = F,row.names = 1)
+gene_order <- read.table('/bigdata/zlin/PanCancer_ICI/data/hg38_gencode_v27.txt', header = F,row.names = 1)
 infercnv_obj = CreateInfercnvObject(raw_counts_matrix=GetAssayData(seu,assay = "RNA", slot ='counts'),
-                                         annotations_file=as.matrix(seu@active.ident),
-                                         delim="\t",
-                                         gene_order_file=gene_order,
-                                         ref_group_names=c("Endothelium" ,"Fibroblasts", "Myeloids"))
+                                    annotations_file=data.frame(row.names = colnames(seu), 'Celltype' = seu$cellType),
+                                    delim="\t",
+                                    gene_order_file=gene_order,
+                                    ref_group_names=c("Endothelial_cell" , "Myeloid_cell"))
 
 infercnv_obj = suppressWarnings(infercnv::run(infercnv_obj,
                                               cutoff=0.1, 
                                               out_dir=output_dir_full, 
                                               cluster_by_groups=T,
                                               cluster_references = F,
-                                              leiden_resolution = 0.001,
+                                              analysis_mode="subclusters",
                                               HMM=T,
                                               per_chr_hmm_subclusters=F,
                                               denoise=T,
                                               num_threads = 60,
                                               no_plot=T))
+seu <- add_to_seurat(seurat_obj = seu, infercnv_output_path = output_dir_full, top_n = 10)
+seu <- seu|>
+  NormalizeData() |>
+  FindVariableFeatures() |>
+  ScaleData() |> 
+  RunPCA(verbose=FALSE) |> 
+  RunUMAP(dims = 1:20) |>  
+  FindNeighbors(dims = 1:20) |> FindClusters()
+FeaturePlot(seu, reduction="umap", features="infercnv_subcluster") + ggplot2::scale_colour_gradient(low="lightgrey", high="blue", limits=c(0,1))
 
-infercnv_obj <- readRDS('/bigdata/zlin/Melanoma_meta/data/SKCM_Becker/infercnv/preliminary.infercnv_obj')
+
+# infercnv_obj <- readRDS('/bigdata/zlin/Melanoma_meta/data/SKCM_Becker/infercnv/preliminary.infercnv_obj')
 expr <- infercnv_obj@expr.data[, unlist(infercnv_obj@observation_grouped_cell_indices)] |> t()
+infer_CNV_obj <- infercnv_obj
 if(T){
-  tmp1 = expr[,infer_CNV_obj@reference_grouped_cell_indices$`ref-1`]
+  tmp1 = expr[,infer_CNV_obj@reference_grouped_cell_indices$Endothelial_cell]
   
   dim(tmp1)
   head(tmp1)[,1:9]
   
-  tmp2 = expr[,infer_CNV_obj@reference_grouped_cell_indices$`ref-2`]
+  tmp2 = expr[,infer_CNV_obj@reference_grouped_cell_indices$Myeloid_cell]
   tmp= cbind(tmp1,tmp2)
   
   dim(tmp)
@@ -153,11 +170,10 @@ if(T){
   #write.csv(x = cell_scores_CNV, file = "cnv_scores.csv")
   
 }
-
-
-
-
-
+seu$cnv_score <- 0
+seu$cnv_score[match(rownames(cell_scores_CNV), colnames(seu))] <- cell_scores_CNV$cnv_score
+FeaturePlot(seu, features = 'cnv_score',max.cutoff = 500)
+DimPlot(seu, group.by = 'cellType')
 
 
 # reproducing cnv heatmap (not working because the row limit of Complexheatmap)

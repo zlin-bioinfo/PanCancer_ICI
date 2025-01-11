@@ -529,3 +529,187 @@ freq_mat <- meta_combi |>
   select(freq_r2_comp, dataset, response, modality, int_cat, patient, time_point, celltype_r2) |>
   pivot_wider(values_from = freq_r2_comp, names_from = time_point, values_fill = 0) |>
   pivot_longer(cols = c('Pre', 'Post'), names_to = 'time_point', values_to = 'freq_r2_comp')
+
+library(msigdbr)
+pathwaysDF <- msigdbr("mouse", category="H")
+pathways <- split(as.character(pathwaysDF$entrez_gene), pathwaysDF$gs_name)
+res <- runGSEA(head(marker_cosg$names$PC_IGHA, n=100) , universe=rownames(seu), category = c('C2'))
+
+
+##############################################################################
+# 0. Load Necessary Packages
+##############################################################################
+library(Seurat)
+library(NMF)        # For NMF analysis
+library(dplyr)      # Data manipulation
+library(tidyr)      # Data tidying
+library(ComplexHeatmap)
+library(ggplot2)
+
+##############################################################################
+# 1. Load the Pre-built Seurat Object and Extract Malignant Cells
+##############################################################################
+# Assuming you already have a Seurat object "Seurat_obj" containing all cell information
+# The "meta.data" slot contains a column "Harmony_SNN_res.0.6" for cell type annotations
+Seurat_obj <- readRDS("seurat.rds")
+
+# Extract the target cell names
+Target_cells <- rownames(Seurat_obj@meta.data)[Seurat_obj@meta.data$Harmony_SNN_res.0.6 %in% c("9", "12", "14", "16", "21", "22")]
+
+# Create a new Seurat object containing only the target cells
+Target_seurat <- subset(Seurat_obj, cells = Target_cells)
+
+# Ensure RNA expression data is used for subsequent operations
+DefaultAssay(Target_seurat) <- "RNA"
+
+# Optionally, check the number of target cells per sample
+table(Target_seurat@meta.data$sample)
+
+##############################################################################
+# 2. Perform NMF for Each Sample and Extract the Top 30 Genes per Program
+##############################################################################
+
+# Set the rank for decomposition (12 programs)
+rank_k <- 12
+
+# List to store the top 30 genes for all samples
+# Structure: Each list element corresponds to "sample_Program" and contains top 30 genes
+all_programs_top30 <- list()
+
+# Get the unique list of samples
+sample_list <- unique(Target_seurat@meta.data$sample)
+
+# Define a function to perform NMF on a single sample and extract top 30 genes
+run_nmf_extract_top30 <- function(sample_id) {
+  
+  # 1) Extract target cells for the given sample
+  temp_cells <- rownames(Target_seurat@meta.data)[
+    Target_seurat@meta.data$sample == sample_id
+  ]
+  
+  # 2) Subset the data for the sample
+  temp_seurat <- subset(Target_seurat, cells = temp_cells)
+  
+  # 3) Standard preprocessing (Normalize, FindVariableFeatures, ScaleData)
+  temp_seurat <- NormalizeData(temp_seurat)
+  temp_seurat <- FindVariableFeatures(temp_seurat)
+  temp_seurat <- ScaleData(temp_seurat, do.center = FALSE)  # Do not center data
+  
+  # 4) Extract normalized or scaled expression matrix
+  exp_matrix <- temp_seurat@assays$RNA@scale.data
+  
+  # 5) Perform NMF
+  #    Use method="snmf/r", set seed = 10, rank = rank_k (12)
+  res_nmf <- nmf(exp_matrix, rank_k, seed = 10, method = "snmf/r")
+  
+  # 6) Extract the "Basis matrix" (gene weights)
+  W <- basis(res_nmf)  # Dimensions: genes x rank_k
+  
+  # 7) Sort genes by weight for each program and extract the top 30
+  top30_genes_list <- apply(W, 2, function(x) {
+    # Sort weights in descending order
+    top_idx <- order(x, decreasing = TRUE)[1:30]
+    rownames(W)[top_idx]
+  })
+  
+  # Name columns as sample_Program1, sample_Program2, ..., sample_Program12
+  colnames(top30_genes_list) <- paste0(sample_id, "_Program", 1:rank_k)
+  
+  # Return the top 30 genes for each program
+  return(top30_genes_list)
+}
+
+# Apply the function to all samples
+for(sample_id in sample_list){
+  cat("Running NMF for sample:", sample_id, "\n")
+  gene_mat <- run_nmf_extract_top30(sample_id)
+  
+  # Add each program's top 30 genes to the global list
+  for(program_name in colnames(gene_mat)){
+    all_programs_top30[[program_name]] <- gene_mat[, program_name]
+  }
+}
+
+##############################################################################
+# 3. Calculate Jaccard Similarity Between Programs and Perform Clustering
+##############################################################################
+
+# Extract the names of all programs
+program_names <- names(all_programs_top30)
+
+# Create an empty matrix for storing Jaccard similarities
+n_prog <- length(program_names)
+jaccard_mat <- matrix(0, nrow = n_prog, ncol = n_prog,
+                      dimnames = list(program_names, program_names))
+
+# Compute pairwise Jaccard similarity
+for(i in seq_len(n_prog)){
+  for(j in seq_len(n_prog)){
+    set1 <- all_programs_top30[[i]]
+    set2 <- all_programs_top30[[j]]
+    inter_len <- length(intersect(set1, set2))
+    union_len <- length(union(set1, set2))
+    jaccard_mat[i, j] <- inter_len / union_len
+  }
+}
+
+# Perform hierarchical clustering on the Jaccard similarity matrix
+dist_mat <- as.dist(1 - jaccard_mat)  # Convert similarity to distance
+hc <- hclust(dist_mat, method = "ward.D2")
+
+##############################################################################
+# 4. Define Meta-Programs Based on Clustering Results and Annotate
+##############################################################################
+k_meta <- 5
+cluster_cut <- cutree(hc, k = k_meta)
+
+# Create a dataframe to store program clusters
+program_cluster_df <- data.frame(
+  Program = program_names,
+  Cluster = cluster_cut
+)
+
+# Assign names to meta-programs (based on functional enrichment)
+meta_program_names <- c("MetaProg_Inflammation",
+                        "MetaProg_CellCycle",
+                        "MetaProg_Differentiation",
+                        "MetaProg_StressResponse",
+                        "MetaProg_Unknown")
+
+program_cluster_df$MetaProgramName <- meta_program_names[program_cluster_df$Cluster]
+
+##############################################################################
+# 5. Extract Top 30 Genes for Each Meta-Program
+##############################################################################
+
+meta_program_top30 <- list()
+
+for(meta in unique(program_cluster_df$MetaProgramName)){
+  progs <- program_cluster_df$Program[program_cluster_df$MetaProgramName == meta]
+  genes <- unlist(all_programs_top30[progs])
+  gene_freq <- table(genes)
+  gene_freq_sorted <- sort(gene_freq, decreasing = TRUE)
+  top30 <- names(gene_freq_sorted)[1:30]
+  meta_program_top30[[meta]] <- top30
+}
+
+##############################################################################
+# 6. Optional: Save Results
+##############################################################################
+# Save results for later analysis or visualization
+write.csv(meta_program_top30, file = "MetaPrograms_Top30_Genes.csv", row.names = FALSE)
+
+# check sample quality
+df <- data.frame(
+  nfeature = sapply(seu_list, function(seu){nfeature <- sum(Matrix::rowSums(seu@assays$RNA$counts>0)>3)
+  return(nfeature)}),
+  ncell = sapply(seu_list, function(seu){ncell <- ncol(seu)
+  return(ncell)})
+)
+# remove samples with <200 cells or <9000 genes 
+sample_rm <- rownames(filter(df, nfeature < 9000 | ncell < 200)); sample_rm
+
+
+
+
+

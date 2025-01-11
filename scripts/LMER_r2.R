@@ -58,6 +58,7 @@ uni_lmer <- function(freq_mat){
 # Overall
 res_lmer <- uni_lmer(freq_mat)
 write.csv(res_lmer, file = '/bigdata/zlin/PanCancer_ICI/tables/lmer_all.csv', row.names = F)
+# res_lmer <- read.csv('/bigdata/zlin/PanCancer_ICI/tables/lmer_all.csv')
 res_lmer <- filter(res_lmer, pValue < 0.05)
 
 # Making plot
@@ -190,7 +191,8 @@ dev.off()
 # boxplot
 df_add <- meta_int |> 
   distinct(sample, celltype_r2, .keep_all = T) |> 
-  filter(celltype_r2 %in% res_lmer$Celltypes[!grepl('ISG15', res_lmer$Celltypes)]) |> 
+  # filter(celltype_r2 %in% res_lmer$Celltypes[!grepl('ISG15', res_lmer$Celltypes)]) |> 
+  filter(celltype_r2 %in% res_lmer$Celltypes[res_lmer$fdr >= 0.05]) |> 
   mutate(celltype_r2 = factor(celltype_r2, levels = res_lmer$Celltypes)) |> 
   select(freq_r2_comp, time_point, patient, celltype_r2) |> 
   pivot_wider(values_from = freq_r2_comp, names_from = time_point, values_fill = 0) |> 
@@ -205,7 +207,8 @@ df_add <- meta_int |>
 # P1
 stat.test <- meta_int |> 
   distinct(sample, celltype_r2, .keep_all = T) |> 
-  filter(celltype_r2 %in% res_lmer$Celltypes[!grepl('ISG15', res_lmer$Celltypes)]) |> 
+  # filter(celltype_r2 %in% res_lmer$Celltypes[!grepl('ISG15', res_lmer$Celltypes)]) |> 
+  filter(celltype_r2 %in% res_lmer$Celltypes[res_lmer$fdr >= 0.05]) |> 
   mutate(celltype_r2 = factor(celltype_r2, levels = res_lmer$Celltypes)) |> 
   select(freq_r2_comp, time_point, patient, celltype_r2) |> 
   pivot_wider(values_from = freq_r2_comp, names_from = time_point, values_fill = 0) |>
@@ -221,7 +224,8 @@ stat.test <- stat.test |>
 
 meta_int |> 
   distinct(sample, celltype_r2, .keep_all = T) |> 
-  filter(celltype_r2 %in% res_lmer$Celltypes[!grepl('ISG15|B_LMO2', res_lmer$Celltypes)]) |> 
+  # filter(celltype_r2 %in% res_lmer$Celltypes[!grepl('ISG15|B_LMO2', res_lmer$Celltypes)]) |> 
+  filter(celltype_r2 %in% res_lmer$Celltypes[res_lmer$fdr >= 0.05]) |> 
   mutate(celltype_r2 = factor(celltype_r2, levels = res_lmer$Celltypes)) |> 
   select(freq_r2_comp, time_point, patient, celltype_r2) |> 
   pivot_wider(values_from = freq_r2_comp, names_from = time_point, values_fill = 0) |>
@@ -243,6 +247,64 @@ meta_int |>
   guides(fill="none", color = "none",
          color = guide_legend(override.aes = list(size=6))) 
 ggsave('/bigdata/zlin/PanCancer_ICI/figures/Change/boxplot.pdf', width = 8, height = 7)
+
+# Top 6
+df_add <- meta_int |> 
+  distinct(sample, celltype_r2, .keep_all = T) |> 
+  filter(celltype_r2 %in% res_lmer$Celltypes[res_lmer$fdr < 0.05]) |> 
+  mutate(celltype_r2 = factor(celltype_r2, levels = res_lmer$Celltypes)) |> 
+  select(freq_r2_comp, time_point, patient, celltype_r2) |> 
+  pivot_wider(values_from = freq_r2_comp, names_from = time_point, values_fill = 0) |> 
+  mutate(direction = ifelse(On > Pre*1.1, 'Up', ifelse(On < Pre*0.9, 'Down', 'not'))) |>
+  group_by(celltype_r2) |> 
+  mutate(pt_count = n()) |> 
+  group_by(direction, .add = T) |> 
+  mutate(dir_count = n()) |> 
+  distinct(celltype_r2, direction, pt_count, dir_count) |> 
+  filter(!direction == 'not') |> 
+  pivot_wider(values_from = 'dir_count', names_from = 'direction')
+# P1
+stat.test <- meta_int |> 
+  distinct(sample, celltype_r2, .keep_all = T) |> 
+  filter(celltype_r2 %in% res_lmer$Celltypes[res_lmer$fdr < 0.05]) |> 
+  mutate(celltype_r2 = factor(celltype_r2, levels = res_lmer$Celltypes)) |> 
+  select(freq_r2_comp, time_point, patient, celltype_r2) |> 
+  pivot_wider(values_from = freq_r2_comp, names_from = time_point, values_fill = 0) |>
+  pivot_longer(cols = c('Pre', 'On'), names_to = 'time_point', values_to = 'freq_r2_comp') |> 
+  group_by(celltype_r2) |> 
+  t_test(freq_r2_comp~time_point, paired = T) |> 
+  add_significance("p")
+stat.test <- merge(stat.test, df_add[df_add$celltype_r2 %in% res_lmer$Celltypes ,], by = 'celltype_r2') 
+stat.test <- stat.test |> 
+  mutate(celltype_r2 = factor(celltype_r2, levels = res_lmer$Celltypes)) |> 
+  arrange(celltype_r2) |> 
+  mutate(strip_label = paste0('Up: ', Up, '/', pt_count, '\n Down: ', Down, '/', pt_count, '\n p=', p)) 
+
+meta_int |> 
+  distinct(sample, celltype_r2, .keep_all = T) |> 
+  filter(celltype_r2 %in% res_lmer$Celltypes[res_lmer$fdr < 0.05]) |> 
+  mutate(celltype_r2 = factor(celltype_r2, levels = res_lmer$Celltypes)) |> 
+  select(freq_r2_comp, time_point, patient, celltype_r2) |> 
+  pivot_wider(values_from = freq_r2_comp, names_from = time_point, values_fill = 0) |>
+  pivot_longer(cols = c('Pre', 'On'), names_to = 'time_point', values_to = 'freq_r2_comp') |> 
+  select(freq_r2_comp, time_point, patient, celltype_r2) |> 
+  merge(stat.test, by = 'celltype_r2') |> 
+  ggplot(aes(x = factor(time_point, levels = c('Pre', 'On')), y = freq_r2_comp)) +
+  geom_violin(aes(fill = time_point), alpha = 0.6) +
+  geom_boxplot(width = 0.3, alpha = 0.2) +
+  geom_line(aes(group = patient), linetype = "dashed", size = 0.2, alpha = 0.3) +
+  geom_point(aes(color = time_point), size = 0.1) +
+  scale_color_manual(values = c('#154999', '#CF0034')) +
+  scale_fill_manual(values = c('#154999', '#CF0034')) +
+  facet_wrap(.~celltype_r2 + strip_label, scales = 'free', ncol = 6) +
+  xlab("") + ylab("Relative Frequency") + 
+  theme_classic() + 
+  theme(axis.text.x = element_text(size = 8, colour = 'black'),
+        strip.text = element_text(size = 8, margin = margin(2,1,2,1))) +
+  guides(fill="none", color = "none",
+         color = guide_legend(override.aes = list(size=6))) 
+ggsave('/bigdata/zlin/PanCancer_ICI/figures/Change/boxplot_top6.pdf', width = 10, height = 3)
+
 
 # ISG15 specific
 subtypes <- unique(meta_int$celltype_r2[str_detect(meta_int$celltype_r2,'ISG15')])

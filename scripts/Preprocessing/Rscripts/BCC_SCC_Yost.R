@@ -36,7 +36,7 @@ genes_to_check = list(c('CD3D', 'CD3E', 'CD4', 'CD8A', 'CD8B'), # T cells 'CD8B'
                       c("DES", "TNNT3", "COX6A2", "ACTC1",  "MYL1"),
                       c('PECAM1','VWF', 'ENG'), 
                       c('MLANA','MITF', 'TYR'), 
-                      c('KRT15','KRT17','EPCAM'),
+                      c('KRT15','KRT17','EPCAM'), 
                       c('MKI67','TOP2A')
 )
 names(genes_to_check) <- c('T','NK','B','Plasma','pDC','Mast','cDC','Mo/Mac','Neu','Fibro','PC','SMC','Endo','Mela','Epi','Proliferating')
@@ -53,10 +53,10 @@ seu$celltype_major[seu$celltype_major == 'unknown'] <- seu$scGate_multi[seu$cell
 DimPlot(seu, group.by = 'celltype_major', cols = getPalette(length(unique(seu$celltype_major))), label = T) /
   DotPlot(seu, group.by = 'celltype_major', features = genes_to_check) + RotatedAxis()
 seu$celltype_major <- mapvalues(seu$celltype_major, 
-                                from = c('Epithelial','CD4T','CD8T','Bcell','PlasmaCell','Fibroblast','Endothelial','Macrophage','Monocyte'), 
-                                to = c('Epithelial cells','CD4+ T-cells','CD8+ T-cells','B-cells','Plasma cells','Fibroblasts','Endothelial cells','Macrophages','Monocytes'))
+                                from = c('Epithelial','CD4T','CD8T','Bcell','PlasmaCell','Macrophage','Monocyte'), 
+                                to = c('Epithelial cells','CD4+ T-cells','CD8+ T-cells','B-cells','Plasma cells','Macrophages','Monocytes'))
 marker_cosg <- cosg(seu |> JoinLayers(), groups='all', assay='RNA', slot='data', mu=1, n_genes_user=100)
-seu <- subset(seu, subset = celltype_major %in% c('panDC','Endothelial','unknown'), invert = T)
+seu <- subset(seu, subset = celltype_major %in% c('panDC','Endothelial','Fibroblast','unknown'), invert = T)
 DimPlot(seu, group.by = 'celltype_major', cols = getPalette(length(unique(seu$celltype_major))), label = T) /
   DotPlot(seu, group.by = 'celltype_major', features = genes_to_check) + RotatedAxis()
 
@@ -116,6 +116,6 @@ seu$cdr3s_nt <- matrix_tcr[colnames(seu), 'cdr3s_nt']
 seu$cdr3s_aa <- matrix_tcr[colnames(seu), 'cdr3s_aa']
 clinical$interval <- as.numeric(clinical$`scRNA days post treatment`) 
 seu$interval <- clinical$interval[match(str_replace(seu$patient, 'SCC_Yost_',''), clinical$Patient)]
-qs_save(seu, file = './data/BCC_Yost/seu_r1.qs2')
+qs_save(seu, file = './data/SCC_Yost/seu_r1.qs2')
 
 

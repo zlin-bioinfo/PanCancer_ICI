@@ -1,9 +1,10 @@
-source("./scripts/Preprocessing/Rscripts/Preprocessing.R")
-clin_info <- readxl::read_xlsx('./data/SKCM_Plozniak/1-s2.0-S0092867423013223-mmc1.xlsx') |> 
+setwd("/home/zlin/workspace/PanCancer_ICI")
+source("scripts/Preprocessing/Rscripts/Preprocessing.R")
+clin_info <- readxl::read_xlsx('data/SKCM_Plozniak/1-s2.0-S0092867423013223-mmc1.xlsx') |> 
   data.frame() |> 
   select(-Abbreviations)
 pt_included <- unique(clin_info$Patient.ID) |> setdiff(c('16','25','29','39'))
-seu <- readRDS('./data/SKCM_Plozniak/Entire_TME.rds')
+seu <- readRDS('data/SKCM_Plozniak/Entire_TME.rds')
 seu <- CreateSeuratObject(counts = seu@assays$RNA$counts, meta.data = seu@meta.data, min.cells = 5, min.features = 400)
 seu$percent_mito <- PercentageFeatureSet(seu, pattern = "^MT-")
 seu$percent_ribo <- PercentageFeatureSet(seu, pattern = "^RP[SL]")
@@ -24,9 +25,9 @@ seu$cancertype <- 'SKCM'
 seu$prior <- 'No'
 
 seu <- preprocessing(seu)
-qs_save(seu, './data/SKCM_Plozniak/processing.qs2')
+qs_save(seu, 'data/SKCM_Plozniak/processing.qs2')
 gc()
-seu <- qs_read('./data/SKCM_Plozniak/processing.qs2')
+seu <- qs_read('data/SKCM_Plozniak/processing.qs2')
 genes_to_check = list(c('CD3D', 'CD3E', 'CD4', 'CD8A', 'CD8B'), # T cells 'CD8B'
                       c('KLRD1','KLRB1', 'KLRC1', 'NCAM1'), # NK cells 'KLRB1', 'KLRC1', 'CD16', 'CD56', 'CD11b', 'CD11c'
                       c('CD79A','CD19', 'MS4A1'),  # B cells 
@@ -78,10 +79,80 @@ seu$res_metric <- ifelse(seu$res_metric == 'RECIST', 'RECISTv1.1',seu$res_metric
 seu$interval <- round(2.5*7)
 seu <- subset(seu, subset = percent.mito < 20)
 
-qs_save(seu, file = './data/SKCM_Plozniak/seu_r1.qs2')
+qs_save(seu, file = 'data/SKCM_Plozniak/seu_r1.qs2')
 
-seu <- qs_read('./data/SKCM_Plozniak/seu_r1.qs2')
+seu <- qs_read('data/SKCM_Plozniak/seu_r1.qs2')
 
+gene_order <- read.table('data/hg38_gencode_v27.txt', header = F,row.names = 1)
+lapply(unique(seu$patient)[unique(seu$patient) != 'SKCM_Plozniak_41'], function(pt){
+  tryCatch({
+    seu_sub <- seu |>
+      subset(subset = patient == pt) |>
+      subset(subset = celltype_major %in% c("Fibroblasts", "Monocytes", "Melanocytes", "Endothelial cells", "Macrophages", "NK cells", "pDC", "Pericytes", "Neutrophils"))
+    infercnv_obj = CreateInfercnvObject(raw_counts_matrix=seu_sub@assays$RNA$counts,
+                                        annotations_file=data.frame(row.names = colnames(seu_sub), 'Celltype' = seu_sub$celltype_major),
+                                        delim="\t",
+                                        gene_order_file=gene_order,
+                                        ref_group_names=unique(seu_sub$celltype_major)[!unique(seu_sub$celltype_major) == "Melanocytes"]
+    )
+    output_dir_full = paste0('data/SKCM_Plozniak/infercnv/', pt)
+    infercnv_obj = suppressWarnings(infercnv::run(infercnv_obj,
+                                                  cutoff=0.1,
+                                                  out_dir=output_dir_full,
+                                                  cluster_by_groups=T,
+                                                  cluster_references = F,
+                                                  analysis_mode="subclusters",
+                                                  HMM=T,
+                                                  HMM_type='i3',
+                                                  denoise=T,
+                                                  plot_steps = F,
+                                                  num_threads = 20))
+  }, error = function(e) {
+    message("Skipping iteration for x = ", x, ": ", e$message)
+    return(NULL)  # Skip this iteration
+  })
+})
+print('done')
+
+make_seurat_from_infercnv_obj <- function(infercnv_obj) {
+  return(CreateSeuratObject(counts = infercnv_obj@count.data, project="infercnv"))
+}
+folders <- list.files('data/SKCM_Plozniak/infercnv')
+folders <- folders[folders != 'SKCM_Plozniak_41']
+infercnv_output <- lapply(folders, function(folder){
+  tryCatch({
+    print(folder)
+    infercnv_obj <- readRDS(paste0('data/SKCM_Plozniak/infercnv/',folder,'/run.final.infercnv_obj'))
+    seu <- add_to_seurat(make_seurat_from_infercnv_obj(infercnv_obj), 
+                         infercnv_output_path = paste0('data/SKCM_Plozniak/infercnv/',folder), assay_name="RNA", top_n=10)
+    cnv_cols <- grep('proportion_cnv_chr', names(seu@meta.data), value = T)
+    cnvs <- seu@meta.data[, cnv_cols]
+    seu$proportion_cnv_avg <- rowMeans(cnvs)
+    cnv_cols <- grep('has_cnv_chr', names(seu@meta.data), value = T)
+    cnvs <- seu@meta.data[, cnv_cols]
+    seu$has_cnv_avg <- rowMeans(cnvs)
+    seu$celltype_major <- str_replace(seu$infercnv_subcluster, '_s\\d+','')
+    seu$malignant <- 'no'
+    seu$malignant[seu$celltype_major %in% c('Melanocytes') & 
+                    seu$has_cnv_avg > quantile(seu$has_cnv_avg[seu$celltype_major %in% c("Fibroblasts", "Monocytes", "Endothelial cells", "Macrophages", "NK cells", "pDC", "Pericytes", "Neutrophils")], 0.9) & 
+                    seu$proportion_cnv_avg > quantile(seu$proportion_cnv_avg[seu$celltype_major %in% c("Fibroblasts", "Monocytes", "Endothelial cells", "Macrophages", "NK cells", "pDC", "Pericytes", "Neutrophils")], 0.9)] <- 'yes'
+    # visualization
+    seu@meta.data |>
+      select(celltype_major, infercnv_subcluster, proportion_cnv_avg, has_cnv_avg) |>
+      mutate(Celltype = case_when(celltype_major %in% c("Fibroblasts", "Monocytes", "Endothelial cells", "Macrophages", "NK cells", "pDC", "Pericytes", "Neutrophils") ~ 'Ref',
+                                  celltype_major %in% c('Melanocytes') ~ celltype_major)) |>
+      tidyplot(x = Celltype, y = has_cnv_avg, color = Celltype) |>
+      add_boxplot() |>
+      add_test_pvalue(ref.group = 3) + RotatedAxis(45)
+    ggsave(paste0('data/SKCM_Plozniak/infercnv/',folder,'/boxplot.pdf'), height = 4, width = 5)
+    return(data.frame('Malignant'=seu$malignant))
+  }, error = function(e) {
+    message("Skipping iteration for x = ", x, ": ", e$message)
+    return(NULL)  # Skip this iteration
+  })
+})
+infercnv_output <- do.call(rbind, infercnv_output)
+write.csv(infercnv_output, 'data/SKCM_Plozniak/infercnv/infercnv_output.csv', row.names = T)
 
 
 

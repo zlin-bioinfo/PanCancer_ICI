@@ -1,31 +1,33 @@
 rm(list=ls())
-pkgs <- c('Seurat','tidyr','plyr','dplyr','stringr','SingleR','ggsci','dior','tibble','qs','BiocParallel','scGate','Matrix','SingleCellExperiment','scran','parallel','scGate','burgertools')
+pkgs <- c('Seurat','tidyr','plyr','dplyr','stringr','SingleR','ggsci','dior','tibble','qs','qs2','BiocParallel','scGate','Matrix','SingleCellExperiment','scran','parallel','scGate','burgertools')
 unlist(lapply(pkgs, function(x) require(package = x,  character.only = TRUE, quietly = TRUE, warn.conflicts = FALSE)))
 options(warn = -1)
 options(max.print = 10000)
-
+# setwd("/home/zlin/workspace/PanCancer_ICI")
 # Loading dataset
-SKCM_Becker <- qread('./data/SKCM_Becker/seu_r1.qs')
-BRCA_Bassez1 <- qread('./data/BRCA_Bassez1/seu_r1.qs')
-BRCA_Bassez2 <- qread('./data/BRCA_Bassez2/seu_r1.qs')
-TNBC_Zhang <- qread('./data/TNBC_Zhang/seu_r1.qs')
-BCC_Yost <- qread('./data/BCC_Yost/seu_r1.qs')
-BCC_Yost$dataset <- 'BCC_Yost'
+SKCM_Becker <- qs_read('data/SKCM_Becker/seu_r1.qs2')
+SKCM_Becker$cohort <- 'SKCM_Becker'
+SKCM_Plozniak <- qs_read('data/SKCM_Plozniak/seu_r1.qs2')
+BRCA_Bassez1 <- qs_read('data/BRCA_Bassez1/seu_r1.qs2')
+BRCA_Bassez2 <- qs_read('data/BRCA_Bassez2/seu_r1.qs2')
+TNBC_Zhang <- qs_read('data/TNBC_Zhang/seu_r1.qs2')
+TNBC_Shiao <- qs_read('data/TNBC_Shiao/seu_r1.qs2')
+HNSC_Franken <- qs_read('data/HNSC_Franken/seu_r1.qs2')
+HNSC_vanderLeun <- qs_read('data/HNSC_vanderLeun/seu_r1.qs2')
+HNSC_vanderLeun$cohort <- 'HNSC_vanderLeun'
+HNSC_Luoma <- qs_read('data/HNSC_Luoma/seu_r1.qs2')
+CRC_Li <- qs_read('data/CRC_Li/seu_r1.qs2')
+CRC_Chen <- qs_read('data/CRC_Chen/seu_r1.qs2')
+BCC_Yost <- qs_read('data/BCC_Yost/seu_r1.qs2')
+BCC_Yost$cohort <- 'BCC_Yost'
 BCC_Yost1 <- BCC_Yost |> 
-  subset(subset = patient %in% c('BCC/SCC_Yost_su009', 'BCC/SCC_Yost_su012'), invert = T)
+  subset(subset = patient %in% c("BCC_Yost_su009", "BCC_Yost_su012"), invert = T)
 BCC_Yost2 <- BCC_Yost |> 
-  subset(subset = patient %in% c('BCC/SCC_Yost_su009', 'BCC/SCC_Yost_su012'))
-SCC_Yost <- qread('./data/SCC_Yost/seu_r1.qs')
-SCC_Yost$dataset <- 'SCC_Yost'
-HNSC_IMCISION <- qread('./data/HNSC_IMCISION/seu_r1.qs')
-HNSC_Luoma <- qread('./data/HNSC_Luoma/seu_r1.qs')
-NSCLC_Liu <- qread('./data/NSCLC_Liu/seu_r1.qs')
-CRC_Li <- qread('./data/CRC_Li/seu_r1.qs')
-PCa_Hawley <- qread('./data/PCa_Hawley/seu_r1.qs')
-TNBC_Shiao <- qread('./data/TNBC_Shiao/seu_r1.qs')
-HNSC_Franken <- qread('./data/HNSC_Franken/seu_r1.qs')
-CRC_Chen <- qread('./data/CRC_Chen/seu_r1.qs')
-SKCM_Plozniak <- qread('./data/SKCM_Plozniak/seu_r1.qs')
+  subset(subset = patient %in% c("BCC_Yost_su009", "BCC_Yost_su012"))
+SCC_Yost <- qs_read('data/SCC_Yost/seu_r1.qs2')
+SCC_Yost$cohort <- 'SCC_Yost'
+NSCLC_Liu <- qs_read('data/NSCLC_Liu/seu_r1.qs2')
+PCa_Hawley <- qs_read('data/PCa_Hawley/seu_r1.qs2')
 
 # Run SingleR with mutiple reference datasets
 # arguments:
@@ -34,7 +36,7 @@ SKCM_Plozniak <- qread('./data/SKCM_Plozniak/seu_r1.qs')
 # major: major cell types (T/NK, Myeloids)
 # type_name: for file name of the predicjtion results
 # datset: for file name of the prediction results
-SingleRMultiRef <- function(seu, ref_list, if.subset = F, major, type_name, n_cores = 5){
+SingleRMultiRef <- function(seu, ref_list, if.subset = F, major, type_name, n_cores = 10){
   label_list <- lapply(ref_list, function(x){
     label <- x$label
     return(label)
@@ -54,30 +56,30 @@ SingleRMultiRef <- function(seu, ref_list, if.subset = F, major, type_name, n_co
     logNormCounts() %>%
     SingleR(ref = eval(parse(text = final_input)), labels = label_list, assay.type.test=1, BPPARAM=MulticoreParam(n_cores))
   print('Predictiion done!')
-  qsave(pred, paste0("./data/", unique(seu$dataset), "/", type_name, ".qs"))
+  qs_save(pred, paste0("data/", unique(seu$cohort), "/", type_name, ".qs2"))
   return(pred)
 }
 # run SingleR with one reference dataset
-SingleROneRef <- function(seu, ref, label, major, type_name, n_cores = 5){
+SingleROneRef <- function(seu, ref, label, major, type_name, n_cores = 10){
   pred <- seu |> 
     subset(subset = celltype_major %in% major) |> 
     as.SingleCellExperiment() |> 
     logNormCounts() |> 
-    SingleR(ref = ref, labels = label, assay.type.test=1, BPPARAM=MulticoreParam(20))
-  qsave(pred, paste0("./data/", unique(seu$dataset), "/", type_name, ".qs"))
+    SingleR(ref = ref, labels = label, assay.type.test=1, BPPARAM=MulticoreParam(n_cores))
+  qs_save(pred, paste0("data/", unique(seu$cohort), "/", type_name, ".qs2"))
 }
 
 # datasets <- list(SKCM_Becker, BRCA_Bassez1, BRCA_Bassez2, TNBC_Zhang, BCC_Yost1, HNSC_IMCISION, HNSC_Luoma, NSCLC_Liu, CRC_Li, PCa_Hawley)
 
 # T_NK
-ref_T <- qread("./data/Ref_SingleR/T_ref.qs")
-ref_CD4 <- qread("./data/Ref_SingleR/T_CD4_ref.qs")
-ref_CD8 <- qread("./data/Ref_SingleR/T_CD8_ref.qs")
-ref_main_NK <- qread("./data/Ref_SingleR/NK_main_ref.qs")
-ref_fine_NK <- qread("./data/Ref_SingleR/NK_fine_ref.qs")
+ref_T <- qs_read("data/Ref_SingleR/T_ref.qs2")
+ref_CD4 <- qs_read("data/Ref_SingleR/T_CD4_ref.qs2")
+ref_CD8 <- qs_read("data/Ref_SingleR/T_CD8_ref.qs2")
+ref_main_NK <- qs_read("data/Ref_SingleR/NK_main_ref.qs2")
+ref_fine_NK <- qs_read("data/Ref_SingleR/NK_fine_ref.qs2")
 
 hierSingleRMultiRef_T_NK <- function(seu, main_ref_list, ref_list_cd4, ref_list_cd8, ref_list_nk_main, ref_list_nk_fine, major = c("CD8+ T-cells","CD4+ T-cells","NK cells")){
-  print(unique(seu$dataset))
+  print(unique(seu$cohort))
   seu <- subset(seu, subset = celltype_major %in% major) 
   seu <- NormalizeData(seu) %>%
     FindVariableFeatures()%>%
@@ -93,14 +95,14 @@ hierSingleRMultiRef_T_NK <- function(seu, main_ref_list, ref_list_cd4, ref_list_
   barcode_NK <- unique(c(colnames(seu_1)[seu_1$is.pure == 'Pure'],
                          colnames(seu_2)[seu_2$is.pure == 'Pure']))
   print(paste0(length(barcode_NK), ' NK cells were detected.'))
-  write.csv(barcode_NK, paste0('./data/', unique(seu$dataset), '/barcode_NK.csv'))
+  write.csv(barcode_NK, paste0('data/', unique(seu$cohort), '/barcode_NK.csv'))
   print('Gating gdT cells')
   gdT <- gating_model(name = "gdT", signature = c("CD3D","TRGC2","TRDV2","TRGV9","TRGV10","TRDC","CD8A-","CD4-"))
   seu_gdT<- scGate(data = seu, model = gdT)
   barcode_gdT <- colnames(seu_gdT)[seu_gdT$is.pure == 'Pure']
   # barcode_gdT <- setdiff(barcode_gdT, barcode_NK)
   print(paste0(length(barcode_gdT), ' gdT cells were detected'))
-  write.csv(barcode_gdT, paste0('./data/', unique(seu$dataset), '/barcode_gdT.csv'))
+  write.csv(barcode_gdT, paste0('data/', unique(seu$cohort), '/barcode_gdT.csv'))
   scGate_models_DB <- get_scGateDB()
   seu_cd4cd8 <- seu[, !colnames(seu) %in% c(barcode_NK, barcode_gdT)]
   print('Gating CD4+T cells')
@@ -126,20 +128,24 @@ hierSingleRMultiRef_T_NK <- function(seu, main_ref_list, ref_list_cd4, ref_list_
   print('NK fine')
   pred_NK_fine <- SingleRMultiRef(seu = seu[, barcode_NK], ref_list = ref_list_nk_fine, type_name = 'NK_fine')
 }
-datasets <- list(SKCM_Becker, BRCA_Bassez1, BRCA_Bassez2, TNBC_Zhang, BCC_Yost1, HNSC_IMCISION, HNSC_Luoma, NSCLC_Liu, CRC_Li, PCa_Hawley)
-mclapply(datasets, function(seu){
-  hierSingleRMultiRef_T_NK(seu, main_ref_list = ref_T, 
-                          ref_list_cd4 = ref_CD4, ref_list_cd8 = ref_CD8, 
-                          ref_list_nk_main = ref_main_NK, ref_list_nk_fine = ref_fine_NK,
-                          major = c("CD8+ T-cells","CD4+ T-cells","NK cells"))}, mc.cores = 100)
-hierSingleRMultiRef_T_NK(SKCM_Plozniak, main_ref_list = ref_T, 
-                         ref_list_cd4 = ref_CD4, ref_list_cd8 = ref_CD8, 
+
+mclapply(list(SKCM_Becker, SKCM_Plozniak, BCC_Yost1,
+              BRCA_Bassez1, BRCA_Bassez2, TNBC_Zhang, TNBC_Shiao,
+              HNSC_Franken, HNSC_vanderLeun, HNSC_Luoma, 
+              CRC_Li, CRC_Chen, PCa_Hawley), function(seu){
+                hierSingleRMultiRef_T_NK(seu, main_ref_list = ref_T, 
+                                         ref_list_cd4 = ref_CD4, ref_list_cd8 = ref_CD8, 
+                                         ref_list_nk_main = ref_main_NK, ref_list_nk_fine = ref_fine_NK,
+                                         major = c("CD8+ T-cells","CD4+ T-cells","Cycling T/NK","NK cells"))}, mc.cores = 5)
+
+hierSingleRMultiRef_T_NK(HNSC_vanderLeun, main_ref_list = ref_T,
+                         ref_list_cd4 = ref_CD4, ref_list_cd8 = ref_CD8,
                          ref_list_nk_main = ref_main_NK, ref_list_nk_fine = ref_fine_NK,
-                         major = c("CD8+ T-cells","CD4+ T-cells","NK cells"))
+                         major = c("CD8+ T-cells","CD4+ T-cells","Cycling T/NK","NK cells"))
 
 # T cells only (CD45+CD3+ sorted)
 hierSingleRMultiRef_T <- function(seu, main_ref_list, ref_list_cd4, ref_list_cd8){
-  print(unique(seu$dataset))
+  print(unique(seu$cohort))
   seu <- NormalizeData(seu) %>%
     FindVariableFeatures()%>%
     ScaleData() %>%
@@ -153,7 +159,7 @@ hierSingleRMultiRef_T <- function(seu, main_ref_list, ref_list_cd4, ref_list_cd8
   barcode_gdT <- colnames(seu_gdT)[seu_gdT$is.pure == 'Pure']
   # barcode_gdT <- setdiff(barcode_gdT, barcode_NK)
   print(paste0(length(barcode_gdT), ' gdT cells were detected'))
-  write.csv(barcode_gdT, paste0('./data/', unique(seu$dataset), '/barcode_gdT_sorted.csv'))
+  write.csv(barcode_gdT, paste0('data/', unique(seu$cohort), '/barcode_gdT_sorted.csv'))
   scGate_models_DB <- get_scGateDB()
   seu_cd4cd8 <- seu[,!colnames(seu) %in% barcode_gdT]
   print('Gating CD4+T cells')
@@ -179,11 +185,11 @@ hierSingleRMultiRef_T(BCC_Yost2, main_ref_list = ref_T, ref_list_cd4 = ref_CD4, 
 hierSingleRMultiRef_T(SCC_Yost, main_ref_list = ref_T, ref_list_cd4 = ref_CD4, ref_list_cd8 = ref_CD8)
 
 # Myeloids (doi.org/10.1016/j.cell.2021.01.010)
-ref_Myeloids <- qread("./data/Ref_SingleR/Myeloids_major_ref.qs")
-ref_cdc2 <- qread("./data/Ref_SingleR/Myeloids_cdc2_ref.qs")
-ref_mono <- qread("./data/Ref_SingleR/Myeloids_mono_ref.qs")
-ref_macro <- qread("./data/Ref_SingleR/Myeloids_macro_ref.qs")
-datasets <- list(SKCM_Becker, BRCA_Bassez1, BRCA_Bassez2, TNBC_Zhang, TNBC_Shiao, BCC_Yost1, HNSC_IMCISION, HNSC_Luoma, CRC_Li, PCa_Hawley)
+ref_Myeloids <- qread("data/Ref_SingleR/Myeloids_major_ref.qs")
+ref_cdc2 <- qread("data/Ref_SingleR/Myeloids_cdc2_ref.qs")
+ref_mono <- qread("data/Ref_SingleR/Myeloids_mono_ref.qs")
+ref_macro <- qread("data/Ref_SingleR/Myeloids_macro_ref.qs")
+cohorts <- list(SKCM_Becker, BRCA_Bassez1, BRCA_Bassez2, TNBC_Zhang, TNBC_Shiao, BCC_Yost1, HNSC_IMCISION, HNSC_Luoma, CRC_Li, PCa_Hawley)
 
 hierSingleRMultiRef_Myeloids <- function(seu, main_ref_list, ref_list_cdc2, ref_list_mono, ref_list_macro){
   pred <- SingleRMultiRef(seu = seu, ref_list = main_ref_list, if.subset = T, major = c('DC', 'Monocytes', 'Macrophages'), type_name = 'Myeloids_major')
@@ -198,29 +204,33 @@ hierSingleRMultiRef_Myeloids <- function(seu, main_ref_list, ref_list_cdc2, ref_
   print('Macrophages')
   pred_macro <- SingleRMultiRef(seu = seu[, barcode_macro], ref_list = ref_list_macro, type_name = 'Macro')
 }
-mclapply(datasets, function(seu){
-  hierSingleRMultiRef_Myeloids(seu, main_ref_list = ref_Myeloids, ref_list_cdc2 = ref_cdc2, 
-                               ref_list_mono = ref_mono, ref_list_macro = ref_macro)}, mc.cores = 100)
-hierSingleRMultiRef_Myeloids(SKCM_Plozniak, main_ref_list = ref_Myeloids, 
+mclapply(list(SKCM_Becker, SKCM_Plozniak, BCC_Yost1,
+              BRCA_Bassez1, BRCA_Bassez2, TNBC_Zhang, TNBC_Shiao,
+              HNSC_Franken, HNSC_vanderLeun, HNSC_Luoma, 
+              CRC_Li, CRC_Chen, PCa_Hawley), function(seu){
+                hierSingleRMultiRef_Myeloids(seu, main_ref_list = ref_Myeloids, 
+                                             ref_list_cdc2 = ref_cdc2, 
+                                             ref_list_mono = ref_mono, 
+                                             ref_list_macro = ref_macro)}, mc.cores = 5)
+hierSingleRMultiRef_Myeloids(HNSC_vanderLeun, main_ref_list = ref_Myeloids, 
                              ref_list_mono = ref_mono, ref_list_macro = ref_macro, ref_list_cdc2 = ref_cdc2)
 
 # # B cells 
 # ref_B <- MonacoImmuneData()
 # bped <- celldex::BlueprintEncodeData()
-# datasets <- list(SKCM_Becker, BRCA_Bassez1, BRCA_Bassez2, TNBC_Zhang, BCC_Yost1, HNSC_IMCISION, HNSC_Luoma, CRC_Li, PCa_Hawley)
+# cohorts <- list(SKCM_Becker, BRCA_Bassez1, BRCA_Bassez2, TNBC_Zhang, BCC_Yost1, HNSC_IMCISION, HNSC_Luoma, CRC_Li, PCa_Hawley)
 # ref_B <- ref_B[, str_detect(ref_B$label.fine, 'B cells') | str_detect(ref_B$label.fine, 'Plasmablasts')]
-# lapply(datasets, function(seu){
-#   print(unique(seu$dataset))
+# lapply(cohorts, function(seu){
+#   print(unique(seu$cohort))
 #   SingleROneRef(seu, ref = ref_B, label = ref_B$label.fine, major = 'B-cells', type_name = 'B')})
 # SingleROneRef(HNSC_Franken, ref = ref_B, label = ref_B$label.fine, major = 'B-cells', type_name = 'B')
 
 # pan-cancer B (doi.org/10.1126/science.adj4857)
-ref_Bplasma <- qread("./data/Ref_SingleR/Pan_B_major.qs")
-ref_b <- qread("./data/Ref_SingleR/B.qs")
-ref_gcb <- qread("./data/Ref_SingleR/GCB.qs")
-ref_plasma <- qread("./data/Ref_SingleR/Plasma.qs")
-ref_asc <- qread("./data/Ref_SingleR/B_asc.qs")
-datasets <- list(SKCM_Becker, BRCA_Bassez1, BRCA_Bassez2, TNBC_Zhang, TNBC_Shiao, BCC_Yost1, HNSC_IMCISION, HNSC_Luoma, HNSC_Franken, CRC_Li, PCa_Hawley, SKCM_Plozniak, CRC_Chen)
+ref_Bplasma <- qread("data/Ref_SingleR/Pan_B_major.qs")
+ref_b <- qread("data/Ref_SingleR/B.qs")
+ref_gcb <- qread("data/Ref_SingleR/GCB.qs")
+ref_plasma <- qread("data/Ref_SingleR/Plasma.qs")
+ref_asc <- qread("data/Ref_SingleR/B_asc.qs")
 hierSingleRMultiRef_Bplasma <- function(seu, main_ref_list, ref_list_b, ref_list_gcb, ref_list_plasma){
   pred <- SingleRMultiRef(seu = seu, ref_list = main_ref_list, if.subset = T, major = c('B-cells', 'Plasma'), type_name = 'Bplasma_major')
   print('Major done!')
@@ -245,10 +255,16 @@ hierSingleRMultiRef_Bplasma <- function(seu, main_ref_list, ref_list_b, ref_list
 #   logNormCounts() |> 
 #   SingleR(ref = ref_asc, labels = ref_asc$label, assay.type.test=1, BPPARAM=MulticoreParam(50))
 
-mclapply(datasets, function(seu){
-  hierSingleRMultiRef_Bplasma(seu, main_ref_list = ref_Bplasma, ref_list_b = ref_b, 
-                               ref_list_gcb = ref_gcb, ref_list_plasma = ref_asc)}, mc.cores = 5)
-hierSingleRMultiRef_Bplasma(BCC_Yost1, main_ref_list = ref_Bplasma, ref_list_b = ref_b, 
+mclapply(list(SKCM_Becker, SKCM_Plozniak, BCC_Yost1,
+              BRCA_Bassez1, BRCA_Bassez2, TNBC_Zhang, TNBC_Shiao,
+              HNSC_Franken, HNSC_vanderLeun, HNSC_Luoma, 
+              CRC_Li, CRC_Chen, PCa_Hawley), function(seu){
+                hierSingleRMultiRef_Bplasma(seu, main_ref_list = ref_Bplasma, 
+                                            ref_list_b = ref_b, 
+                                            ref_list_gcb = ref_gcb, 
+                                            ref_list_plasma = ref_asc)}, mc.cores = 5)
+
+hierSingleRMultiRef_Bplasma(HNSC_vanderLeun, main_ref_list = ref_Bplasma, ref_list_b = ref_b, 
                              ref_list_gcb = ref_gcb, ref_list_plasma = ref_asc)
 
 seu_sub_b <- subset(BRCA_Bassez1, subset = celltype_major %in% c("B-cells", "Plasma")) |> as.SingleCellExperiment() |> logNormCounts()
@@ -271,13 +287,13 @@ genes_to_check <- c('FCER2', 'TCL1A', 'IL4R', 'CD72', 'BACH2', 'IGHD', 'IGHM',
                    'IGHG1', 'IGHG2', 'IGHG3', 'IGHG4', 'IGHA1', 'IGHA2', 
                    'IL10', 'IL12A', 'EBI3', 'TGFB1', 'IL35')
 DotPlot(seu_sub_b, group.by = 'singler', features = genes_to_check) + RotatedAxis()
-df_marker <- readxl::read_xlsx('./data/GSE233236(ref_B)/1-s2.0-S0092867424007128-mmc3.xlsx')
+df_marker <- readxl::read_xlsx('data/GSE233236(ref_B)/1-s2.0-S0092867424007128-mmc3.xlsx')
 
 # pan-cancer B (doi.org/10.1016/j.cell.2024.06.038)
-ref_BPlasma <- qread("./data/Ref_SingleR/Pan_B-major.qs")
-ref_b <- qread("./data/Ref_SingleR/B_naive-memory.qs")
-ref_cg <- qread("./data/Ref_SingleR/B_cycling-gc.qs")
-ref_asc <- qread("./data/Ref_SingleR/B_asc.qs")
+ref_BPlasma <- qread("data/Ref_SingleR/Pan_B-major.qs2")
+ref_b <- qread("data/Ref_SingleR/B_naive-memory.qs2")
+ref_cg <- qread("data/Ref_SingleR/B_cycling-gc.qs2")
+ref_asc <- qread("data/Ref_SingleR/B_asc.qs2")
 hierSingleRMultiRef_BPlasma <- function(seu, main_ref_list, ref_1, ref_2, ref_3){
   pred <- SingleRMultiRef(seu = seu, ref_list = main_ref_list, if.subset = T, major = c('B-cells', 'Plasma'), type_name = 'BPlasma_major')
   print('Major done!')
@@ -295,13 +311,13 @@ hierSingleRMultiRef_BPlasma <- function(seu, main_ref_list, ref_1, ref_2, ref_3)
     pred_asc <- SingleROneRef(seu = seu[, pred_asc], ref = ref_3, label = ref_3$label, major = c('B-cells', 'Plasma'), type_name = 'ASC')
   }
 }
-datasets <- list(SKCM_Becker, BRCA_Bassez1, BRCA_Bassez2, TNBC_Zhang, TNBC_Shiao, BCC_Yost1, HNSC_IMCISION, HNSC_Luoma, HNSC_Franken, CRC_Li, CRC_Chen, PCa_Hawley)
-mclapply(datasets, function(seu){
+cohorts <- list(SKCM_Becker, BRCA_Bassez1, BRCA_Bassez2, TNBC_Zhang, TNBC_Shiao, BCC_Yost1, HNSC_IMCISION, HNSC_Luoma, HNSC_Franken, CRC_Li, CRC_Chen, PCa_Hawley)
+mclapply(cohorts, function(seu){
   hierSingleRMultiRef_BPlasma(seu, main_ref_list = ref_BPlasma, ref_1 = ref_b, ref_2 = ref_cg, ref_3 = ref_asc)}, mc.cores = 100)
 
 # Pan-cancer Endothelial cells (doi.org/10.1093/nsr/nwae231)
-ref_endo_major <- qread('./data/Ref_SingleR/Endo_major.qs')
-ref_endo_vascular <- qread('./data/Ref_SingleR/Endo_vascular.qs')
+ref_endo_major <- qread('data/Ref_SingleR/Endo_major.qs')
+ref_endo_vascular <- qread('data/Ref_SingleR/Endo_vascular.qs')
 hierSingleRMultiRef_Endo <- function(seu, main_ref_list, ref_list_vas){
   pred <- SingleRMultiRef(seu = seu, ref_list = main_ref_list, if.subset = T, major = c('Endothelial cells'), type_name = 'pan-Endo')
   print('Major done!')
@@ -309,10 +325,11 @@ hierSingleRMultiRef_Endo <- function(seu, main_ref_list, ref_list_vas){
   print('Vascular')
   pred_vas <- SingleRMultiRef(seu = seu[, pred_vas], ref_list = ref_list_vas, type_name = 'pan-Endo_vas')
 }
-datasets <- list(SKCM_Becker, BRCA_Bassez1, BRCA_Bassez2, BCC_Yost1, CRC_Li, CRC_Chen, PCa_Hawley)
-mclapply(datasets, function(seu){
-  hierSingleRMultiRef_Endo(seu, main_ref_list = ref_endo_major, ref_list_vas = ref_endo_vascular)}, 
-  mc.cores = 100)
+cohorts <- list(SKCM_Becker, SKCM_Plozniak, BRCA_Bassez1, BRCA_Bassez2, TNBC_Shiao, HNSC_Franken, BCC_Yost1, CRC_Li, CRC_Chen, PCa_Hawley)
+mclapply(cohorts, function(seu){
+  hierSingleRMultiRef_Endo(seu, 
+                           main_ref_list = ref_endo_major, 
+                           ref_list_vas = ref_endo_vascular)}, mc.cores = 5)
 hierSingleRMultiRef_Endo(CRC_Chen, main_ref_list = ref_endo_major, ref_list_vas = ref_endo_vascular)
 # Markers to validate
 genes_to_check = c('GJA4','GJA5','FBLN5',
@@ -321,30 +338,30 @@ genes_to_check = c('GJA4','GJA5','FBLN5',
                    'COL4A1','KDR','ESM1',
                    'ACKR1','SELP','CLU')
 
-# Endothelial cells
-ref_Endo <- qread("./data/Ref_SingleR/Endo_ref.qs")
-datasets <- list(SKCM_Becker, BRCA_Bassez1, BRCA_Bassez2, BCC_Yost1, CRC_Li, CRC_Chen, PCa_Hawley)
-lapply(datasets, function(seu){SingleROneRef(seu, ref = ref_Endo, label = ref_Endo$label, major = 'Endothelial cells', type_name = 'Endo')})
-SingleROneRef(HNSC_Franken, ref = ref_Endo, label = ref_Endo$label, major = 'Endothelial cells', type_name = 'Endo')
+# # Endothelial cells
+# ref_Endo <- qread("data/Ref_SingleR/Endo_ref.qs2")
+# cohorts <- list(SKCM_Becker, BRCA_Bassez1, BRCA_Bassez2, BCC_Yost1, CRC_Li, CRC_Chen, PCa_Hawley)
+# lapply(cohorts, function(seu){SingleROneRef(seu, ref = ref_Endo, label = ref_Endo$label, major = 'Endothelial cells', type_name = 'Endo')})
+# SingleROneRef(HNSC_Franken, ref = ref_Endo, label = ref_Endo$label, major = 'Endothelial cells', type_name = 'Endo')
 
 # CAF (doi.org/10.1038/s41467-024-48310-4)
-ref_CAF <- qread("./data/Ref_SingleR/CAF_ref.qs")
-datasets <- list(SKCM_Becker, BRCA_Bassez1, BRCA_Bassez2, BCC_Yost1, CRC_Li, PCa_Hawley)
-lapply(datasets, function(seu){
-  print(unique(seu$dataset))
-  SingleRMultiRef(seu, ref_list = ref_CAF, major = c('Fibroblasts','Myocytes'), if.subset = T, type_name = 'CAF')})
+ref_CAF <- qread("data/Ref_SingleR/CAF_ref.qs")
+cohorts <- list(SKCM_Becker, SKCM_Plozniak, BRCA_Bassez1, BRCA_Bassez2, TNBC_Shiao, HNSC_Franken, BCC_Yost, CRC_Li, CRC_Chen, PCa_Hawley)
+lapply(cohorts, function(seu){
+  print(unique(seu$cohort))
+  SingleRMultiRef(seu, ref_list = ref_CAF, major = c('Fibroblasts','Myocytes','Mural cells','Pericytes'), if.subset = T, type_name = 'CAF')})
 SingleRMultiRef(CRC_Chen, ref_list = ref_CAF, major = c('Fibroblasts','Myocytes'), if.subset = T, type_name = 'CAF')
 
-add_to_seu_r2 <- function(cd45_sorted = F, dataset, majortype, celltype_major_remove, label_overlapped, celltype_r2_remove){
-  seu <- qread(paste0('./data/', dataset,'/seu_r1.qs'))
+add_to_seu_r2 <- function(cd45_sorted = F, cohort, majortype, celltype_major_remove, label_overlapped, celltype_r2_remove){
+  seu <- qread(paste0('data/', cohort,'/seu_r1.qs2'))
   seu$celltype_major <- as.character(seu$celltype_major)
   seu <- subset(seu, subset = celltype_major %in% celltype_major_remove, invert = T)
-  pred_list <- lapply(paste0('./data/', dataset, '/', majortype, ".qs"), qread)
+  pred_list <- lapply(paste0('data/', cohort, '/', majortype, ".qs2"), qread)
   names(pred_list) <- majortype
   pred_concat <- do.call(rbind, lapply(pred_list, function(df) {
     data.frame(cell = rownames(df), celltype_r2 = df$pruned.labels)
   }))
-  barcode_gdT <- read.csv(paste0('./data/', dataset, '/barcode_gdT.csv')) 
+  barcode_gdT <- read.csv(paste0('data/', cohort, '/barcode_gdT.csv')) 
   pred_gdT <- data.frame(cell = barcode_gdT[,'x'], celltype_r2 = 'gdT')
   pred_concat <- rbind(pred_concat, pred_gdT)
   pred_concat <- filter(pred_concat, !celltype_r2 %in% label_overlapped)
@@ -378,7 +395,7 @@ add_to_seu_r2 <- function(cd45_sorted = F, dataset, majortype, celltype_major_re
 
 # TME
 ## SKCM_Becker BRCA_Bassez1 BRCA_Bassez2 HNSC_Franken CRC_Li CRC_Chen PCa_Hawley
-dataset <- 'SKCM_Becker'
+cohort <- 'SKCM_Becker'
 seu <- add_to_seu_r2(dataset = dataset, 
                      majortype = c('CD4','CD8','NK_main','pan-B','GCB','Plasma','Myeloids_major','cDC2','Mono','Macro','pan-Endo','pan-Endo_vas','CAF'),
                      celltype_major_remove = c('Melanoma', 'Epithelial cells'),
@@ -386,7 +403,7 @@ seu <- add_to_seu_r2(dataset = dataset,
                      celltype_r2_remove = 'CD56highCD16high')
 # keep only site-matched samples
 seu <- subset(seu, subset = patient %in% c('SKCM_Becker_P2', 'SKCM_Becker_P5', 'SKCM_Becker_P6','SKCM_Becker_P7','SKCM_Becker_P9','SKCM_Becker_P10','SKCM_Becker_P11','SKCM_Becker_P12'))
-qsave(seu, paste0('./data/', dataset, '/seu_r2.qs'))
+qsave(seu, paste0('data/', dataset, '/seu_r2.qs2'))
 
 dataset <- 'BRCA_Bassez1'
 seu <- add_to_seu_r2(dataset = dataset, 
@@ -394,7 +411,7 @@ seu <- add_to_seu_r2(dataset = dataset,
                      celltype_major_remove = c('Melanoma', 'Epithelial cells'),
                      label_overlapped = c('cDC2','Macro', 'Mono','vascular'),
                      celltype_r2_remove = 'CD56highCD16high')
-qsave(seu, paste0('./data/', dataset, '/seu_r2.qs'))
+qsave(seu, paste0('data/', dataset, '/seu_r2.qs2'))
 
 dataset <- 'BRCA_Bassez2'
 seu <- add_to_seu_r2(dataset = dataset, 
@@ -402,7 +419,7 @@ seu <- add_to_seu_r2(dataset = dataset,
                      celltype_major_remove = c('Melanoma', 'Epithelial cells'),
                      label_overlapped = c('cDC2','Macro', 'Mono','vascular'),
                      celltype_r2_remove = 'CD56highCD16high')
-qsave(seu, paste0('./data/', dataset, '/seu_r2.qs'))
+qsave(seu, paste0('data/', dataset, '/seu_r2.qs2'))
 
 dataset <- 'HNSC_Franken'
 seu <- add_to_seu_r2(dataset = dataset, 
@@ -410,7 +427,7 @@ seu <- add_to_seu_r2(dataset = dataset,
                      celltype_major_remove = c('Melanoma', 'Epithelial cells'),
                      label_overlapped = c('cDC2','Macro', 'Mono','vascular'),
                      celltype_r2_remove = 'CD56highCD16high')
-qsave(seu, paste0('./data/', dataset, '/seu_r2.qs'))
+qsave(seu, paste0('data/', dataset, '/seu_r2.qs2'))
 
 dataset <- 'CRC_Li'
 seu <- add_to_seu_r2(dataset = dataset, 
@@ -418,7 +435,7 @@ seu <- add_to_seu_r2(dataset = dataset,
                      celltype_major_remove = c('Melanoma', 'Epithelial cells'),
                      label_overlapped = c('cDC2','Macro', 'Mono','vascular'),
                      celltype_r2_remove = 'CD56highCD16high')
-qsave(seu, paste0('./data/', dataset, '/seu_r2.qs'))
+qsave(seu, paste0('data/', dataset, '/seu_r2.qs2'))
 
 dataset <- 'CRC_Chen'
 seu <- add_to_seu_r2(dataset = dataset, 
@@ -426,13 +443,13 @@ seu <- add_to_seu_r2(dataset = dataset,
                      celltype_major_remove = c('Melanoma', 'Epithelial cells'),
                      label_overlapped = c('cDC2','Macro', 'Mono','vascular'),
                      celltype_r2_remove = 'CD56highCD16high')
-qsave(seu, paste0('./data/', dataset, '/seu_r2.qs'))
+qsave(seu, paste0('data/', dataset, '/seu_r2.qs2'))
 
 dataset <- 'PCa_Hawley'
 cell_subtype <- c('CD4','CD8','NK_main','Myeloids_major','cDC2','Mono','Macro','pan-Endo','pan-Endo_vas','CAF','pan-B','Plasma')
 PCa_Hawley$celltype_major <- as.character(PCa_Hawley$celltype_major)
 PCa_Hawley <- subset(PCa_Hawley, subset = celltype_major %in% c('Epithelial cells'), invert = T)
-pred_list <- lapply(paste0('./data/', dataset, '/', cell_subtype, ".qs"), qread)
+pred_list <- lapply(paste0('data/', dataset, '/', cell_subtype, ".qs2"), qread)
 names(pred_list) <- cell_subtype
 PCa_Hawley$celltype_r2 <- 'Unresolved'
 pred_concat <- do.call(rbind, lapply(pred_list, function(df) {
@@ -462,7 +479,7 @@ PCa_Hawley$celltype_main[str_detect(PCa_Hawley$celltype_r2, 'CAF') | str_detect(
 PCa_Hawley$celltype_main[str_detect(PCa_Hawley$celltype_major, 'Mast')] <- 'Mast'
 table(PCa_Hawley$celltype_main, PCa_Hawley$celltype_major, useNA = 'ifany')
 PCa_Hawley <- subset(PCa_Hawley, subset = celltype_r2 =='CD56highCD16high', invert = T)
-qsave(PCa_Hawley, './data/PCa_Hawley/seu_r2.qs')
+qsave(PCa_Hawley, 'data/PCa_Hawley/seu_r2.qs2')
 
 # CD45+Sorted 
 # TNBC_Zhang TNBC_Shiao HNSC_IMCISION HNSC_Luoma 
@@ -472,7 +489,7 @@ seu <- add_to_seu_r2(dataset = dataset,
                      celltype_major_remove = NA,
                      label_overlapped = c('cDC2','Macro', 'Mono'),
                      celltype_r2_remove = 'CD56highCD16high')
-qsave(seu, paste0('./data/', dataset, '/seu_r2.qs'))
+qsave(seu, paste0('data/', dataset, '/seu_r2.qs2'))
 
 dataset <- 'TNBC_Shiao'
 seu <- add_to_seu_r2(dataset = dataset, 
@@ -480,7 +497,7 @@ seu <- add_to_seu_r2(dataset = dataset,
                      celltype_major_remove = NA,
                      label_overlapped = c('cDC2','Macro', 'Mono'),
                      celltype_r2_remove = 'CD56highCD16high')
-qsave(seu, paste0('./data/', dataset, '/seu_r2.qs'))
+qsave(seu, paste0('data/', dataset, '/seu_r2.qs2'))
 
 dataset <- 'HNSC_IMCISION'
 seu <- add_to_seu_r2(dataset = dataset, 
@@ -488,7 +505,7 @@ seu <- add_to_seu_r2(dataset = dataset,
                      celltype_major_remove = NA,
                      label_overlapped = c('cDC2','Macro', 'Mono'),
                      celltype_r2_remove = 'CD56highCD16high')
-qsave(seu, paste0('./data/', dataset, '/seu_r2.qs'))
+qsave(seu, paste0('data/', dataset, '/seu_r2.qs2'))
 
 dataset <- 'HNSC_Luoma'
 seu <- add_to_seu_r2(dataset = dataset, 
@@ -496,30 +513,30 @@ seu <- add_to_seu_r2(dataset = dataset,
                      celltype_major_remove = NA,
                      label_overlapped = c('cDC2','Macro', 'Mono'),
                      celltype_r2_remove = 'CD56highCD16high')
-qsave(seu, paste0('./data/', dataset, '/seu_r2.qs'))
+qsave(seu, paste0('data/', dataset, '/seu_r2.qs2'))
 
 # Mixed BCC_Yost
 dataset <- 'BCC_Yost'
 cell_subtype <- c('CD4','CD8','NK_main','Myeloids_major','cDC2','Mono','Macro','pan-Endo','pan-Endo_vas','CAF','pan-B','Plasma','GCB')
 BCC_Yost$celltype_major <- as.character(BCC_Yost$celltype_major)
 BCC_Yost <- subset(BCC_Yost, subset = celltype_major %in% c('Epithelial cells', 'Melanocytes'), invert = T)
-pred_list <- lapply(paste0('./data/', dataset, '/', cell_subtype, ".qs"), qread)
+pred_list <- lapply(paste0('data/', dataset, '/', cell_subtype, ".qs2"), qread)
 names(pred_list) <- cell_subtype
 pred_concat <- do.call(rbind, lapply(pred_list, function(df) {
   data.frame(cell = rownames(df), celltype_r2 = df$pruned.labels)
 }))
-barcode_gdT <- read.csv(paste0('./data/', dataset, '/barcode_gdT.csv')) 
+barcode_gdT <- read.csv(paste0('data/', dataset, '/barcode_gdT.csv')) 
 pred_gdT <- data.frame(cell = barcode_gdT[,'x'], celltype_r2 = 'gdT')
 pred_concat <- rbind(pred_concat, pred_gdT)
 pred_concat <- filter(pred_concat, !celltype_r2 %in% c('cDC2', 'Macro', 'Mono','vascular'))
 # su009 su012
 cell_subtype <- c('sorted_CD4','sorted_CD8')
-pred_list2 <- lapply(paste0('./data/', dataset, '/', cell_subtype, ".qs"), qread)
+pred_list2 <- lapply(paste0('data/', dataset, '/', cell_subtype, ".qs2"), qread)
 names(pred_list2) <- cell_subtype
 pred_concat2 <- do.call(rbind, lapply(pred_list2, function(df) {
   data.frame(cell = rownames(df), celltype_r2 = df$pruned.labels)
 }))
-barcode_gdT2 <- read.csv(paste0('./data/', dataset, '/barcode_gdT_sorted.csv')) 
+barcode_gdT2 <- read.csv(paste0('data/', dataset, '/barcode_gdT_sorted.csv')) 
 pred_gdT2 <- data.frame(cell = barcode_gdT2[,'x'], celltype_r2 = 'gdT')
 pred_concat <- purrr::reduce(list(pred_concat, pred_gdT2, pred_concat2), rbind)
 BCC_Yost$celltype_r2 <- pred_concat$celltype_r2[match(colnames(BCC_Yost), pred_concat$cell)]
@@ -547,19 +564,19 @@ table(BCC_Yost$patient, BCC_Yost$celltype_main, useNA = 'ifany')
 BCC_Yost <- BCC_Yost[,!BCC_Yost$celltype_main == 'celltype']
 BCC_Yost <- subset(BCC_Yost, subset = celltype_r2 == 'CD56highCD16high', invert = T)
 BCC_Yost$dataset <- 'BCC_Yost'
-qsave(BCC_Yost, './data/BCC_Yost/seu_r2.qs')
+qsave(BCC_Yost, 'data/BCC_Yost/seu_r2.qs2')
 
 # SCC_Yost
 dataset <- 'SCC_Yost'
 cell_subtype <- c('CD4','CD8')
 SCC_Yost$celltype_major <- as.character(SCC_Yost$celltype_major)
-pred_list <- lapply(paste0('./data/', dataset, '/sorted_', cell_subtype, ".qs"), qread)
+pred_list <- lapply(paste0('data/', dataset, '/sorted_', cell_subtype, ".qs2"), qread)
 names(pred_list) <- cell_subtype
 SCC_Yost$celltype_r2 <- 'Unresolved'
 pred_concat <- do.call(rbind, lapply(pred_list, function(df) {
   data.frame(cell = rownames(df), celltype_r2 = df$pruned.labels)
 }))
-barcode_gdT <- read.csv(paste0('./data/', dataset, '/barcode_gdT_sorted.csv')) 
+barcode_gdT <- read.csv(paste0('data/', dataset, '/barcode_gdT_sorted.csv')) 
 pred_gdT <- data.frame(cell = barcode_gdT[,'x'], celltype_r2 = 'gdT')
 pred_concat <- rbind(pred_concat, pred_gdT)
 mapping <- setNames(pred_concat$celltype_r2, pred_concat$cell)
@@ -571,12 +588,12 @@ SCC_Yost$celltype_main[str_detect(SCC_Yost$celltype_r2, 'CD4')] <- 'CD4+T'
 SCC_Yost$celltype_main[str_detect(SCC_Yost$celltype_r2, 'CD8')] <- 'CD8+T'
 SCC_Yost$celltype_main[str_detect(SCC_Yost$celltype_r2, 'gdT')] <- 'CD8+T'
 table(SCC_Yost$celltype_r2, SCC_Yost$celltype_main, useNA = 'ifany')
-qsave(SCC_Yost, './data/SCC_Yost/seu_r2.qs')
+qsave(SCC_Yost, 'data/SCC_Yost/seu_r2.qs2')
 
 dataset <- 'NSCLC_Liu'
 cell_subtype <- c('CD4','CD8','NK_main')
 NSCLC_Liu$celltype_major <- as.character(NSCLC_Liu$celltype_major)
-pred_list <- lapply(paste0('./data/', dataset, '/', cell_subtype, ".qs"), qread)
+pred_list <- lapply(paste0('data/', dataset, '/', cell_subtype, ".qs2"), qread)
 names(pred_list) <- cell_subtype
 NSCLC_Liu$celltype_r2 <- 'Unresolved'
 pred_concat <- do.call(rbind, lapply(pred_list, function(df) {
@@ -593,13 +610,13 @@ NSCLC_Liu$celltype_main <- 'celltype'
 NSCLC_Liu$celltype_main[str_detect(NSCLC_Liu$celltype_r2, 'CD4')] <- 'CD4+T'
 NSCLC_Liu$celltype_main[str_detect(NSCLC_Liu$celltype_r2, 'CD8')] <- 'CD8+T'
 table(NSCLC_Liu$celltype_main, NSCLC_Liu$celltype_major, useNA = 'ifany')
-qsave(NSCLC_Liu, './data/NSCLC_Liu/seu_r2.qs')
+qsave(NSCLC_Liu, 'data/NSCLC_Liu/seu_r2.qs2')
 
 # Adjust labels
 datasets <- c('SKCM_Becker', 'BRCA_Bassez1', 'BRCA_Bassez2', 'TNBC_Zhang', 'BCC_Yost', 'SCC_Yost', 'HNSC_IMCISION', 'HNSC_Luoma', 'NSCLC_Liu', 'CRC_Li', 'CRC_Chen', 'PCa_Hawley', 'TNBC_Shiao', 'HNSC_Franken')
 lapply(datasets, function(dataset){
   print(dataset)
-  seu <- qread(paste0('./data/', dataset, '/seu_r2.qs')) 
+  seu <- qread(paste0('data/', dataset, '/seu_r2.qs2')) 
   # Modification
   # CD4+T
   seu$celltype_r2[seu$celltype_r2 == 'CD4_Tn_IL7R-'] <- 'CD4_Prolif'
@@ -659,11 +676,11 @@ lapply(datasets, function(dataset){
   
   seu$time_point <- ifelse(seu$time_point == 'Post', 'On', seu$time_point)
   
-  qsave(seu, paste0('./data/', dataset, '/seu_r2.qs')) 
-  if (!dir.exists(paste0('./data/', dataset, '/seu_r2/'))){
-    dir.create(paste0('./data/', dataset, '/seu_r2/'))
+  qsave(seu, paste0('data/', dataset, '/seu_r2.qs2')) 
+  if (!dir.exists(paste0('data/', dataset, '/seu_r2/'))){
+    dir.create(paste0('data/', dataset, '/seu_r2/'))
   }
-  Export10X(seu, dir =paste0('./data/', dataset, '/seu_r2/'), 
+  Export10X(seu, dir =paste0('data/', dataset, '/seu_r2/'), 
             append_reductions = NULL, gzip = F)
 })
 

@@ -1,5 +1,5 @@
 rm(list=ls())
-pkgs <- c('Seurat','tidyr','plyr','dplyr','stringr','SingleR','ggsci','tibble','qs','BiocParallel','Matrix','SingleCellExperiment','scran','parallel','scGate','ggplot2')
+pkgs <- c('Seurat','tidyr','plyr','dplyr','stringr','SingleR','ggsci','tibble','qs','qs2','BiocParallel','Matrix','SingleCellExperiment','scran','parallel','scGate','ggplot2')
 unlist(lapply(pkgs, function(x) require(package = x,  character.only = TRUE, quietly = TRUE, warn.conflicts = FALSE)))
 options(warn = -1)
 
@@ -54,7 +54,7 @@ for (i in 1:length(unique(sce$cancer))){
 qsave(ref_cdc2, "./data/Ref_SingleR/Myeloids_cdc2_ref.qs")
 
 #T/NK (counts)
-file_list <- list.files("./data/GSE156728(ref_Tcell)/", pattern = 'counts', full.names = T)
+file_list <- list.files("./data/GSE156728(ref_Tcell)", pattern = 'counts', full.names = T)
 cancertype <- unique(str_split(file_list,'_',simplify = T)[,3])
 df_metadata <- data.table::fread('./data/GSE156728(ref_Tcell)/GSE156728_metadata.txt.gz') %>%
   filter(cancerType %in% cancertype, loc=='T') %>% 
@@ -63,7 +63,7 @@ df_metadata$meta.cluster <- str_replace_all(df_metadata$meta.cluster, '\\.', '_'
 df_metadata$meta.cluster[str_detect(df_metadata$meta.cluster, 'CD4') & df_metadata$meta.cluster == 'CD4_c01_Tn_TCF7'] <- 'CD4_c01_Naive'
 df_metadata$meta.cluster[str_detect(df_metadata$meta.cluster, 'CD4') & df_metadata$meta.cluster == 'CD4_c02_Tn_PASK'] <- 'CD4_c02_pre-Tfh_CXCR5+'
 df_metadata$meta.cluster[str_detect(df_metadata$meta.cluster, 'CD4') & df_metadata$meta.cluster == 'CD4_c03_Tn_ADSL'] <- 'CD4_c03_Tn_ADSL'
-df_metadata$meta.cluster[str_detect(df_metadata$meta.cluster, 'CD4') & df_metadata$meta.cluster == 'CD4_c04_Tn_il7r'] <- 'CD4_c04_Tn_IL7R-'
+# df_metadata$meta.cluster[str_detect(df_metadata$meta.cluster, 'CD4') & df_metadata$meta.cluster == 'CD4_c04_Tn_il7r'] <- 'CD4_c04_Tn_IL7R-'
 df_metadata$meta.cluster[str_detect(df_metadata$meta.cluster, 'CD4') & df_metadata$meta.cluster == 'CD4_c06_Tm_ANXA1'] <- 'CD4_c06_Tm_AREG'
 df_metadata$meta.cluster[str_detect(df_metadata$meta.cluster, 'CD4') & df_metadata$meta.cluster == 'CD4_c07_Tm_ANXA2'] <- 'CD4_c07_Tm_TIMP1'
 df_metadata$meta.cluster[str_detect(df_metadata$meta.cluster, 'CD4') & df_metadata$meta.cluster == 'CD4_c11_Tm_GZMA'] <- 'CD4_c11_Tm_CAPG+CREM-'
@@ -83,7 +83,7 @@ df_metadata$meta.cluster[str_detect(df_metadata$meta.cluster, 'CD8') & df_metada
 df_metadata$meta.cluster[str_detect(df_metadata$meta.cluster, 'CD8') & df_metadata$meta.cluster == 'CD8_c13_Tex_myl12a'] <- 'CD8_c13_Tex_OXPHOS-'
 df_metadata$meta.cluster[str_detect(df_metadata$meta.cluster, 'CD8') & df_metadata$meta.cluster == 'CD8_c15_ISG_IFIT1'] <- 'CD8_c15_ISG'
 df_metadata$meta.cluster[df_metadata$meta.cluster != 'uncharacterized'] <- str_replace(df_metadata$meta.cluster[df_metadata$meta.cluster != 'uncharacterized'], 'c\\d{2}\\_', '')
-df_metadata <- filter(df_metadata, !meta.cluster %in% c('uncharacterized', 'CD4_Mix_NME1', 'CD4_Mix_NME2'))
+df_metadata <- filter(df_metadata, !meta.cluster %in% c('uncharacterized', 'CD4_Mix_NME1', 'CD4_Mix_NME2','CD4_c04_Tn_il7r','CD8_Tm_NME1'))
 
 file_list[str_detect(file_list, 'CD4')]
 seu_list <- lapply(file_list[str_detect(file_list, 'CD4')], function(x){
@@ -95,27 +95,35 @@ seu_list <- lapply(file_list[str_detect(file_list, 'CD4')], function(x){
 
 seu <- merge(x=seu_list[[1]], y=seu_list[2:length(seu_list)], add.cell.ids = names(seu_list)) |> NormalizeData()
 Idents(seu) <- seu$meta.cluster
+genes_to_check <- c('CD3D','CD8A','CD8B','PTPRC','TCF7', 'LEF1', 'CCR7', 'SELL', 'IL16', 'IL7R', 'CD44', 'CD69', 'TXNIP', 'GIMAP4', 'ANXA1', 'YPEL5', 'AREG', 'CD55', 'TIMP1', 'CAPG', 'CXCR6', 'LGALS3', 'HLA-DRB1', 'CREM', 'SLC38A2', 'CXCR4', 'DUSP2', 'NR4A2', 'CCL5', 'TNF', 'GZMK', 'EOMES', 'KLRG1', 'CX3CR1', 'TBX21', 'CXCR5', 'BCL6', 'ZBTB10', 'TOX', 'TOX2', 'IL21', 'CCL4', 'IFNG', 'GZMB', 'PRF1', 'CXCL13', 'PDCD1', 'LAG3', 'HAVCR2', 'IL2RA', 'CTLA4', 'LAYN', 'RTKN2', 'TNFRSF9', 'FOXP3', 'BATF', 'HIVEP1', 'ISG15', 'IFIT1', 'IFNGR1', 'ATF3', 'CCR6', 'KLRB1', 'RORA', 'RORC', 'IL17A', 'IL26', 'MKI67', 'TOP2A')
 DotPlot(seu, group.by = 'meta.cluster', features = genes_to_check, cluster.idents = T, idents = unique(seu$meta.cluster)) + RotatedAxis()
 
-seu_CD4 <- readRDS('./data/CD4_CD8_NM/CD4.rds')
-Idents(seu_CD4) <- seu_CD4$cell.type
-genes_to_check <- c('PTPRC','TCF7', 'LEF1', 'CCR7', 'SELL', 'IL16', 'IL7R', 'CD44', 'CD69', 'TXNIP', 'GIMAP4', 'ANXA1', 'YPEL5', 'AREG', 'CD55', 'TIMP1', 'CAPG', 'CXCR6', 'LGALS3', 'HLA-DRB1', 'CREM', 'SLC38A2', 'CXCR4', 'DUSP2', 'NR4A2', 'CCL5', 'TNF', 'GZMK', 'EOMES', 'KLRG1', 'CX3CR1', 'TBX21', 'CXCR5', 'BCL6', 'ZBTB10', 'TOX', 'TOX2', 'IL21', 'CCL4', 'IFNG', 'GZMB', 'PRF1', 'CXCL13', 'PDCD1', 'LAG3', 'HAVCR2', 'IL2RA', 'CTLA4', 'LAYN', 'RTKN2', 'TNFRSF9', 'FOXP3', 'BATF', 'HIVEP1', 'ISG15', 'IFIT1', 'IFNGR1', 'ATF3', 'CCR6', 'KLRB1', 'RORA', 'RORC', 'IL17A', 'IL26', 'MKI67', 'TOP2A')
-DotPlot(seu_CD4, group.by = 'cell.type', features = genes_to_check, cluster.idents = T, idents = unique(seu_CD4$cell.type)) + RotatedAxis()
-
-seu_CD8 <- readRDS('./data/CD4_CD8_NM/CD8.rds')
+# 
+# seu_CD8 <- readRDS('./data/CD4_CD8_NM/CD8.rds')
+# seu_CD8 <- subset(seu_CD8, subset = TissueType %in% c('Metastatic tumor tissue', 'Primary tumor tissue'))
+# Idents(seu_CD8) <- seu_CD8$cell.type
+# genes_to_check <- c('CD3D','CD8A','CD8B','MKI67','TOP2A',
+#                     'TCF7','LEF1','CCR7','SELL',
+#                     'SLC4A10','KLRB1','RORA','IL7R','CD27','LMNA','ZNF683','GZMB','CXCR6','ITGAE','ITGA1','CXCR5',
+#                     'GZMH','GZMK','EOMES','CXCR3','IFNG','PRF1','CXCL13',
+#                     'CTLA4','PDCD1','LAG3','TIGIT','LAYN','ISG15',# 'MYL12A','MYL12B',
+#                     'CD69','TRDV2','TRGV9','CX3CR1','TBX21','FGFBP2','KLRF1','FCGR3A',
+#                     'GNLY','TYROBP','XCL1','XCL2','NCAM1')
+# DotPlot(seu_CD8, group.by = 'cell.type', features = genes_to_check, cluster.idents = T, idents = unique(seu_CD8$cell.type)) + RotatedAxis()
+# marker_cosg <- cosg(seu_CD8 , groups='all', assay='RNA', slot='data', mu=1, n_genes_user=100)
 
 ref_CD4 <- lapply(file_list[str_detect(file_list, 'CD4')], function(x){
-  cancertype <- unique(str_split(x,'_',simplify = T)[,4])
+  cancertype <- unique(str_split(x,'_',simplify = T)[,3])
   matrix_meta <- filter(df_metadata, cancerType == cancertype, str_detect(meta.cluster, 'CD4')) 
   matrix_count <- data.table::fread(x) %>% tibble::column_to_rownames(var = 'V1') %>% as.sparse()
   matrix_count <- matrix_count[, which(colnames(matrix_count) %in% rownames(matrix_meta))]
-  sce <- SingleCellExperiment(assay = list(counts = matrix_count)) 
+  sce <- SingleCellExperiment(assay = list(counts = matrix_count))
   sce$major <- 'CD4'
   return(sce)
 })
 
 ref_CD8 <- lapply(file_list[str_detect(file_list, 'CD8')], function(x){
-  cancertype <- unique(str_split(x,'_',simplify = T)[,4])
+  cancertype <- unique(str_split(x,'_',simplify = T)[,3])
   print(cancertype)
   matrix_meta <- filter(df_metadata, cancerType == cancertype, str_detect(meta.cluster, 'CD8')) 
   matrix_count <- data.table::fread(x) %>% tibble::column_to_rownames(var = 'V1') %>% as.sparse()
@@ -133,31 +141,55 @@ for (i in 1:5){
 }
 
 ref_T <- lapply(ref_list_T, function(sce){
-  sce <- logNormCounts(sce) %>% aggregateReference(.$major)
+  sce <- logNormCounts(sce) 
+  sce <-aggregateReference(sce, sce$major)
   return(sce)
 })
-qsave(ref_T, "./data/Ref_SingleR/T_ref.qs")
-
+# qsave(ref_T, "./data/Ref_SingleR/T_ref.qs")
+# ref_T <- qread("./data/Ref_SingleR/T_ref.qs")
+qs_save(ref_T, "./data/Ref_SingleR/T_ref.qs2")
 # Fine level
-ref_CD4 <- lapply(file_list[str_detect(file_list, 'CD4')], function(x){
-  cancertype <- unique(str_split(x,'_',simplify = T)[,4])
-  matrix_meta <- filter(df_metadata, cancerType == cancertype, str_detect(meta.cluster, 'CD4')) 
-  matrix_count <- data.table::fread(x) %>% tibble::column_to_rownames(var = 'V1') %>% as.sparse()
-  matrix_count <- matrix_count[, which(colnames(matrix_count) %in% rownames(matrix_meta))]
-  sce <- SingleCellExperiment(assay = list(counts = matrix_count), colData = matrix_meta[colnames(matrix_count),]) %>% logNormCounts() %>% aggregateReference(.$meta.cluster)
-  return(sce)
-})
-qsave(ref_CD4, "./data/Ref_SingleR/T_CD4_ref.qs")
+# ref_CD4 <- lapply(file_list[str_detect(file_list, 'CD4')], function(x){
+#   cancertype <- unique(str_split(x,'_',simplify = T)[,4])
+#   matrix_meta <- filter(df_metadata, cancerType == cancertype, str_detect(meta.cluster, 'CD4')) 
+#   matrix_count <- data.table::fread(x) %>% tibble::column_to_rownames(var = 'V1') %>% as.sparse()
+#   matrix_count <- matrix_count[, which(colnames(matrix_count) %in% rownames(matrix_meta))]
+#   sce <- SingleCellExperiment(assay = list(counts = matrix_count), colData = matrix_meta[colnames(matrix_count),]) %>% logNormCounts() %>% aggregateReference(.$meta.cluster)
+#   return(sce)
+# })
+# qsave(ref_CD4, "./data/Ref_SingleR/T_CD4_ref.qs")
 
-ref_CD8 <- lapply(file_list[str_detect(file_list, 'CD8')], function(x){
-  cancertype <- unique(str_split(x,'_',simplify = T)[,4])
+seu_CD4 <- readRDS('data/CD4_CD8_NM/CD4.rds')
+Idents(seu_CD4) <- seu_CD4$cell.type
+DotPlot(seu_CD4, group.by = 'cell.type', features = genes_to_check, cluster.idents = T, idents = unique(seu_CD4$cell.type)) + RotatedAxis()
+seu_CD4 <- subset(seu_CD4, subset = TissueType %in% c('Metastatic tumor tissue', 'Primary tumor tissue'))
+ref_CD4_list <- SplitObject(seu_CD4, split.by = "batch") |> 
+  lapply(function(seu){
+    sce <- seu |> as.SingleCellExperiment() |> logNormCounts() 
+    sce <- aggregateReference(sce, sce$cell.type)
+    return(sce)
+  })
+qs_save(ref_CD4_list, "./data/Ref_SingleR/T_CD4_ref.qs2")
+
+ref_CD8_2021_Zheng <- lapply(file_list[str_detect(file_list, 'CD8')], function(x){
+  cancertype <- unique(str_split(x,'_',simplify = T)[,3])
   matrix_meta <- filter(df_metadata, cancerType == cancertype, str_detect(meta.cluster, 'CD8')) 
   matrix_count <- data.table::fread(x) %>% tibble::column_to_rownames(var = 'V1') %>% as.sparse()
   matrix_count <- matrix_count[, which(colnames(matrix_count) %in% rownames(matrix_meta))]
   sce <- SingleCellExperiment(assay = list(counts = matrix_count), colData = matrix_meta[colnames(matrix_count),]) %>% logNormCounts() %>% aggregateReference(.$meta.cluster)
   return(sce)
 })
-qsave(ref_CD8, "./data/Ref_SingleR/T_CD8_ref.qs")
+
+seu_CD8 <- readRDS('data/CD4_CD8_NM/CD8.rds')
+seu_CD8 <- subset(seu_CD8, subset = TissueType %in% c('Metastatic tumor tissue', 'Primary tumor tissue'))
+ref_CD8_2023_Chu <- SplitObject(seu_CD8, split.by = "batch") |> 
+  lapply(function(seu){
+    sce <- seu |> as.SingleCellExperiment() |> logNormCounts() 
+    sce <- aggregateReference(sce, sce$cell.type)
+    return(sce)
+  })
+ref_CD8_list <- c(ref_CD8_2021_Zheng, ref_CD8_2023_Chu)
+qs_save(ref_CD8_list, "./data/Ref_SingleR/T_CD8_ref.qs2")
 
 # NK
 data_dir <- './data/GSE212890(ref_NK)/'
@@ -183,12 +215,13 @@ ref_main_NK <- lapply(ref_NK, function(x) {
   sce <- logNormCounts(x) %>% aggregateReference(.$Majortype)
   return(sce)
 })
-qsave(ref_main_NK, "./data/Ref_SingleR/NK_main_ref.qs")
+
+qs_save(ref_main_NK, "./data/Ref_SingleR/NK_main_ref.qs2")
 ref_fine_NK <- lapply(ref_NK, function(x) {
   sce <- logNormCounts(x) %>% aggregateReference(.$celltype)
   return(sce)
 })
-qsave(ref_fine_NK, "./data/Ref_SingleR/NK_fine_ref.qs")
+qs_save(ref_fine_NK, "./data/Ref_SingleR/NK_fine_ref.qs2")
 
 # CAFs
 metadata <- read.table(gzfile('./data/GSE210347(ref_CAF)/GSE210347_meta.txt.gz'), row.names = 1, header = T) %>%

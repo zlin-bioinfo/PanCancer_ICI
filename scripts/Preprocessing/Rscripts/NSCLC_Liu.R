@@ -53,16 +53,14 @@ DimPlot(seu, group.by = 'seurat_clusters', cols = getPalette(length(unique(seu$s
 
 marker_cosg <- cosg(seu |> JoinLayers(), groups='all', assay='RNA', slot='data', mu=1, n_genes_user=100)
 
-seu$celltype_major <- 'T cells'
+seu$celltype_major <- seu$celltype_bped_main
 seu$celltype_major[seu$celltype_bped_main == 'NK cells' & seu$scGate_multi ==  'NK'] <- 'NK cells'
 
 seu <- subset(seu, subset = seurat_clusters %in% c(6,8), invert=T)
 seu <- subset(seu, subset = scGate_multi == 'Multi' | 
                 scGate_multi %in% c("panDC", "Fibroblast", "NK") | 
-                celltype_bped_main == c('NK cells', "Epithelial cells", "B-cells", "Monocytes", "DC", "Fibroblasts",  "Macrophages", "Endothelial cells", "Melanocytes") |
-                (celltype_bped_main == 'unknown' & scGate_multi == 'unknown'),
-              invert=T)
-
+                (celltype_bped_main == 'unknown' & scGate_multi == 'unknown'), invert=T)
+seu <- subset(seu, subset = celltype_bped_main %in% c('Endothelial cells','Epithelial cells','Fibroblasts'), invert=T)
 seu@meta.data <- seu@meta.data[, !grepl("UCell", colnames(seu@meta.data))]
 seu@meta.data <- seu@meta.data[, !grepl("is.pure_", colnames(seu@meta.data))]
 seu@meta.data <- seu@meta.data[, !grepl("CellOntology", colnames(seu@meta.data))]

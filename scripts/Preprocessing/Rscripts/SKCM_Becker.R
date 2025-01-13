@@ -1,10 +1,9 @@
 #!/usr/bin/env Rscript
-setwd("/home/zlin/workspace/PanCancer_ICI")
+# setwd("/home/zlin/workspace/PanCancer_ICI")
 source("./scripts/Preprocessing/Rscripts/Preprocessing.R")
+
 samples <- list.files("./data/SKCM_Becker/cellranger")
-
 samples <- samples[!samples %in% c('E19324','E23347','E23368')] # remove poor quality samples
-
 seu_list <- lapply(samples, function(sample){
   print(sample)
   if (sample == 'E23346'){
@@ -180,10 +179,65 @@ seu <- qs_read('./data/SKCM_Becker/seu_r1.qs2')
 # 
 # da_results <- annotateNhoods(milo, da_results, coldata_col = "celltype_major")
 # plotDAbeeswarm(da_results, group.by = "celltype_major")
+gene_order <- read.table('data/hg38_gencode_v27.txt', header = F,row.names = 1)
+lapply(unique(seu$patient), function(pt){
+  seu_sub <- seu |>
+    subset(subset = patient == pt) |>
+    subset(subset = celltype_major %in% c("Fibroblasts", "Monocytes", "Melanocytes", "Endothelial cells", "Macrophages", "NK cells", "pDC", "Pericytes", "Neutrophils"))
+  infercnv_obj = CreateInfercnvObject(raw_counts_matrix=seu_sub@assays$RNA$counts,
+                                      annotations_file=data.frame(row.names = colnames(seu_sub), 'Celltype' = seu_sub$celltype_major),
+                                      delim="\t",
+                                      gene_order_file=gene_order,
+                                      ref_group_names=unique(seu_sub$celltype_major)[!unique(seu_sub$celltype_major) == "Melanocytes"]
+  )
+  output_dir_full = paste0('data/SKCM_Becker/infercnv/', pt)
+  infercnv_obj = suppressWarnings(infercnv::run(infercnv_obj,
+                                                cutoff=0.1,
+                                                out_dir=output_dir_full,
+                                                cluster_by_groups=T,
+                                                cluster_references = F,
+                                                analysis_mode="subclusters",
+                                                HMM=T,
+                                                HMM_type='i3',
+                                                denoise=T,
+                                                plot_steps = F,
+                                                num_threads = 20))
+})
+print('done')
 
-
-
-
+make_seurat_from_infercnv_obj <- function(infercnv_obj) {
+  return(CreateSeuratObject(counts = infercnv_obj@count.data, project="infercnv"))
+}
+folders <- list.files('data/SKCM_Becker/infercnv')
+infercnv_output <- lapply(folders, function(folder){
+  print(folder)
+  infercnv_obj <- readRDS(paste0('data/SKCM_Becker/infercnv/',folder,'/run.final.infercnv_obj'))
+  seu <- add_to_seurat(make_seurat_from_infercnv_obj(infercnv_obj), 
+                       infercnv_output_path = paste0('data/SKCM_Becker/infercnv/',folder), assay_name="RNA", top_n=10)
+  cnv_cols <- grep('proportion_cnv_chr', names(seu@meta.data), value = T)
+  cnvs <- seu@meta.data[, cnv_cols]
+  seu$proportion_cnv_avg <- rowMeans(cnvs)
+  cnv_cols <- grep('has_cnv_chr', names(seu@meta.data), value = T)
+  cnvs <- seu@meta.data[, cnv_cols]
+  seu$has_cnv_avg <- rowMeans(cnvs)
+  seu$celltype_major <- str_replace(seu$infercnv_subcluster, '_s\\d+','')
+  seu$malignant <- 'no'
+  seu$malignant[seu$celltype_major %in% c('Melanocytes') & 
+                  seu$has_cnv_avg > quantile(seu$has_cnv_avg[seu$celltype_major %in% c("Fibroblasts", "Monocytes", "Endothelial cells", "Macrophages", "NK cells", "pDC", "Pericytes", "Neutrophils")], 0.9) & 
+                  seu$proportion_cnv_avg > quantile(seu$proportion_cnv_avg[seu$celltype_major %in% c("Fibroblasts", "Monocytes", "Endothelial cells", "Macrophages", "NK cells", "pDC", "Pericytes", "Neutrophils")], 0.9)] <- 'yes'
+  # visualization
+  seu@meta.data |>
+    select(celltype_major, infercnv_subcluster, proportion_cnv_avg, has_cnv_avg) |>
+    mutate(Celltype = case_when(celltype_major %in% c("Fibroblasts", "Monocytes", "Endothelial cells", "Macrophages", "NK cells", "pDC", "Pericytes", "Neutrophils") ~ 'Ref',
+                                celltype_major %in% c('Melanocytes') ~ celltype_major)) |>
+    tidyplot(x = Celltype, y = has_cnv_avg, color = Celltype) |>
+    add_boxplot() |>
+    add_test_pvalue(ref.group = 3) + RotatedAxis(45)
+  ggsave(paste0('data/SKCM_Becker/infercnv/',folder,'/boxplot.pdf'), height = 4, width = 5)
+  return(data.frame('Malignant'=seu$malignant))
+})
+infercnv_output <- do.call(rbind, infercnv_output)
+write.csv(infercnv_output, 'data/SKCM_Becker/infercnv/infercnv_output.csv', row.names = T)
 
 
 

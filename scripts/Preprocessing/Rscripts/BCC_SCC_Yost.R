@@ -106,6 +106,7 @@ clinical <- clinical[clinical$Patient %in% unique(str_replace(seu$patient, 'SCC_
 seu$interval <- clinical$interval[match(str_replace(seu$patient, 'SCC_Yost_',''), clinical$Patient)]
 seu$response <- 'NR'
 seu$response[seu$response == 'SCC_Yost_su011'] <- 'RE'
+seu$celltype_major <- 'T-cells'
 seu <- seu |> 
   StandardizeGeneSymbols(slot = 'counts', EnsemblGeneTable=EnsemblGeneTable.Hs) |> 
   NormalizeData() |> 
@@ -117,5 +118,8 @@ seu$cdr3s_aa <- matrix_tcr[colnames(seu), 'cdr3s_aa']
 clinical$interval <- as.numeric(clinical$`scRNA days post treatment`) 
 seu$interval <- clinical$interval[match(str_replace(seu$patient, 'SCC_Yost_',''), clinical$Patient)]
 qs_save(seu, file = './data/SCC_Yost/seu_r1.qs2')
+
+
+
 
 

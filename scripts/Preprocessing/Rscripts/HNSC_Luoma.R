@@ -1,12 +1,12 @@
-source("./scripts/Preprocessing/Rscripts/Preprocessing.R")
-files <- list.files('./data/HNSC_Luoma/')
+source("scripts/Preprocessing/Rscripts/Preprocessing.R")
+files <- list.files('data/HNSC_Luoma/')
 files_scrna_pre <- files[str_detect(files, 'pre-Tx_GEX_sc_tumor')]
 pattern <- "P\\d+"
 pt_rna <- str_extract(files_scrna_pre, pattern)
 combined_pattern <- paste(paste0(pt_rna, '_post-Tx_GEX_sc_tumor'), collapse = "|")
 files_scrna_post <- files[str_detect(files, combined_pattern)]
-count_list <- purrr::map(paste0('./data/HNSC_Luoma/' ,c(files_scrna_pre, files_scrna_post)), Read10X_h5)
-clin_df <- readxl::read_xlsx('./data/HNSC_Luoma/1-s2.0-S0092867422007231-mmc1.xlsx') |> 
+count_list <- purrr::map(paste0('data/HNSC_Luoma/' ,c(files_scrna_pre, files_scrna_post)), Read10X_h5)
+clin_df <- readxl::read_xlsx('data/HNSC_Luoma/1-s2.0-S0092867422007231-mmc1.xlsx') |> 
   filter(`Pat. ID` %in% pt_rna) |> 
   tibble::column_to_rownames(var = 'Pat. ID')
 clin_df_dup <- clin_df
@@ -31,8 +31,8 @@ seu <- merge(x=seu_list[[1]], y=seu_list[2:length(seu_list)])
 seu <- JoinLayers(seu)
 
 seu <- preprocessing(seu, sorted = T)
-qs_save(seu, './data/HNSC_Luoma/processing.qs2')
-seu <- qs_read('./data/HNSC_Luoma/processing.qs2')
+qs_save(seu, 'data/HNSC_Luoma/processing.qs2')
+seu <- qs_read('data/HNSC_Luoma/processing.qs2')
 genes_to_check = list(c('CD3D', 'CD3E', 'CD4', 'CD8A', 'CD8B'), # T cells 'CD8B'
                       c('KLRD1','KLRB1', 'KLRC1', 'NCAM1'), # NK cells 'KLRB1', 'KLRC1', 'CD16', 'CD56', 'CD11b', 'CD11c'
                       c('CD79A','CD19', 'MS4A1'),  # B cells 
@@ -83,10 +83,13 @@ seu$sample <- paste0(seu$patient, '_', seu$time_point)
 seu$prior <- 'No'
 seu$res_metric <- 'RECIST'
 
-qs_save(seu, file = './data/HNSC_Luoma/seu_r1.qs2')
+qs_save(seu, file = 'data/HNSC_Luoma/seu_r1.qs2')
 
-
-
+seu <- qs_read('data/HNSC_Luoma/seu_r2.qs2')
+seu$res_metric <- 'Pathology'
+seu$response <- 'NR'
+seu$response[seu$patient %in% c('HNSC_Luoma_P32','HNSC_Luoma_P23','HNSC_Luoma_P18')] <- 'R'
+qs_save(seu, file = 'data/HNSC_Luoma/seu_r2.qs2')
 
 
 

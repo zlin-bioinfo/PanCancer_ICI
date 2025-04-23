@@ -710,6 +710,172 @@ df <- data.frame(
 sample_rm <- rownames(filter(df, nfeature < 9000 | ncell < 200)); sample_rm
 
 
+SingleRMultiRef <- function(seu, ref_list, if.subset = F, major, type_name, n_cores = 20){
+  label_list <- lapply(ref_list, function(x){
+    label <- x$label
+    return(label)
+  })
+  # Create the formatted input string
+  # Set the number of combinations
+  num_combinations <- length(ref_list)
+  # Generate random combinations
+  random_combinations <- replicate(num_combinations, paste(sample(letters, 4), collapse = ""))
+  input_string <- paste0(random_combinations, "=", "ref_list[[", seq_along(ref_list), "]]", collapse = ", ")
+  final_input <- paste("ref = list(", input_string, ")", sep = "")
+  if (if.subset == T){
+    seu <- subset(seu, subset = celltype_major %in% major)
+  }
+  pred <- seu %>%
+    as.SingleCellExperiment() %>%
+    logNormCounts() %>%
+    SingleR(ref = eval(parse(text = final_input)), labels = label_list, assay.type.test=1, BPPARAM=MulticoreParam(n_cores))
+  print('Predictiion done!')
+  # qs_save(pred, paste0("data/", unique(seu$cohort), "/", type_name, ".qs2"))
+  return(pred)
+}
+# 
+# pred <- SingleRMultiRef(seu, ref_CD4, major = c("CD4+ T-cells"))
+seu <- qs_read('data/BRCA_Bassez1/seu_r1.qs2')
+sce <- qs_read("./data/Ref_SingleR/T_CD4_ref.qs2")
+pred <- seu |>
+  subset(subset = celltype_major == "CD4+ T-cells") |>
+  as.SingleCellExperiment() |>
+  logNormCounts() |>
+  SingleR(ref = sce, labels = sce$cell.type, assay.type.test=1, BPPARAM=MulticoreParam(80))
+seu_sub <- seu |> subset(subset = celltype_major == "CD4+ T-cells")
+seu_sub$r2 <- pred$pruned.labels
+seu_sub$r2[is.na(seu_sub$r2)] <- 'unknown'
+genes_to_check <- c('TCF7','LEF1','CCR7','SELL',
+                    'IL16','IL7R','CD44','CD69','TXNIP','GIMAP4','ANXA1','YPEL5','AREG','CD55','TIMP1','CAPG','CXCR6','LGALS3', 'HLA-DRB1','CREM','SLC38A2','CXCR4','DUSP2','NR4A2','BAG3','HSPA1A','CCL5','TNF','GZMK','EOMES','KLRG1','CX3CR1','TBX21',
+                    'CXCR5','BCL6','ZBTB10','TOX','TOX2','IL21','CCL4','IFNG','GZMB','PRF1','CXCL13',
+                    'PDCD1','LAG3','HAVCR2','IL2RA','CTLA4','LAYN','RTKN2','TNFRSF9','FOXP3','BATF','HIVEP1','ISG15','IFIT1','IFNGR1','ATF3',
+                    'CCR6','KLRB1','RORA','RORC','IL17A','IL26','MKI67','TOP2A')
+Idents(seu_sub) <- seu_sub$r2
+DotPlot(seu_sub, group.by = 'r2', features = genes_to_check, cluster.idents = T, idents = unique(seu_sub$r2)) + RotatedAxis()
+DotPlot(seu_CD4, group.by = 'cell.type', features = genes_to_check, cluster.idents = T, idents = unique(seu_sub$r2), col.max = 2) + RotatedAxis()
+library(COSG)
+marker_cosg<-cosg(
+  seu,
+  groups='all',
+  assay='RNA',
+  slot='data',
+  mu=1,
+  n_genes_user=100)
+top_list<-c()
+for (group in colnames(marker_cosg$names)){
+  top_i<-marker_cosg$names[group][1:8,1]
+  top_list<-c(top_list,top_i)
+}
+DotPlot(seu_CD4,
+        assay = 'RNA',
+        features =  unique(top_list)) + RotatedAxis()
+
+sce <- seu_CD8 |> as.SingleCellExperiment()
+pred <- seu |>
+  subset(subset = celltype_major == "CD8+ T-cells") |>
+  as.SingleCellExperiment() |>
+  logNormCounts() |>
+  SingleR(ref = sce, labels = sce$meta.cluster, assay.type.test=1, BPPARAM=MulticoreParam(80))
+seu_sub <- seu |> subset(subset = celltype_major == "CD8+ T-cells")
+seu_sub$r2 <- pred$pruned.labels
+seu_sub$r2[is.na(seu_sub$r2)] <- 'unknown'
+Idents(seu_sub) <- seu_sub$r2
+genes_to_check <- c('CD3D','CD8A','CD8B','MKI67','TOP2A',
+                    'TCF7','LEF1','CCR7','SELL',
+                    'SLC4A10','KLRB1','RORA','IL7R','CD27','LMNA','ZNF683','GZMB','CXCR6','ITGAE','ITGA1','CXCR5',
+                    'GZMH','GZMK','EOMES','CXCR3','IFNG','PRF1','CXCL13',
+                    'CTLA4','PDCD1','LAG3','TIGIT','LAYN','ISG15','MYL12A','MYL12B',
+                    'CD69',"HSPA6", "HSPA1B", "HSPA1A","TRDV1", "TRGV5","TRGV2","TRGV9", "TRDC","TXK","RPS12",'FGFBP2','KLRF1','FCGR3A',
+                    'GNLY','TYROBP','XCL1','XCL2','NCAM1')
+DotPlot(seu_sub, group.by = 'r2', features = genes_to_check, cluster.idents = T, idents = unique(seu_sub$r2)) + RotatedAxis()
+
+pred <- seu |>
+  subset(subset = celltype_major == "CD8+ T-cells") |>
+  as.SingleCellExperiment() |>
+  logNormCounts() |>
+  SingleR(ref = sce, labels = sce$label, assay.type.test=1, BPPARAM=MulticoreParam(40))
+# seu_sub <- seu |> subset(subset = celltype_major == "CD8+ T-cells")
+seu_sub$r2_bulk <- pred$pruned.labels
+seu_sub$r2_bulk[is.na(seu_sub$r2_bulk)] <- 'unknown'
+Idents(seu_sub) <- seu_sub$r2_bulk
+DotPlot(seu_sub, group.by = 'r2_bulk', features = genes_to_check, cluster.idents = T, idents = unique(seu_sub$r2_bulk)) + RotatedAxis()
 
 
+seu_list <- lapply(file_list[str_detect(file_list, 'CD8')], function(x){
+  cancertype <- unique(str_split(x,'_',simplify = T)[,3])
+  matrix_meta <- filter(df_metadata, cancerType == cancertype, str_detect(meta.cluster, 'CD8')) 
+  matrix_count <- data.table::fread(x) %>% tibble::column_to_rownames(var = 'V1') %>% as.sparse()
+  matrix_count <- matrix_count[, which(colnames(matrix_count) %in% rownames(matrix_meta))]
+  # sce <- SingleCellExperiment(assay = list(counts = matrix_count), colData = matrix_meta[colnames(matrix_count),]) %>% logNormCounts() # %>% aggregateReference(.$meta.cluster)
+  seu <- CreateSeuratObject(counts = matrix_count, meta.data = matrix_meta)
+  return(seu)
+})
+seu <- merge(x=seu_list[[1]], y=seu_list[2:length(seu_list)]) |> JoinLayers() |> NormalizeData()
+Idents(seu) <- seu$meta.cluster
+DotPlot(seu, group.by = 'meta.cluster', features = genes_to_check, cluster.idents = T, idents = unique(seu$meta.cluster)) + RotatedAxis()
+library(COSG)
+marker_cosg<-cosg(
+  seu,
+  groups='all',
+  assay='RNA',
+  slot='data',
+  mu=1,
+  n_genes_user=1000)
+top_list<-c()
+for (group in colnames(marker_cosg$names)){
+  top_i<-marker_cosg$names[group][1:5,1]
+  top_list<-c(top_list,top_i)
+}
+DotPlot(seu,
+        assay = 'RNA',
+        features =  c('CD3D','CD3E','CD8A','CD8B','TRDV2','TRGV9',unique(top_list))) + RotatedAxis()
 
+pred <- SingleRMultiRef(seu, ref_CD8, major = c("CD8+ T-cells"))
+
+
+sce <- seu |> as.SingleCellExperiment()
+sce$meta.cluster[sce$meta.cluster %in% c('CD8_NK-like_TXK','CD8_NK-like_EOMES')] <- 'CD8_NK-like'
+sce$meta.cluster[sce$meta.cluster == "CD8_Tex_OXPHOS-"] <- 'CD8_Tex_CXCL13'
+pred <- seu |>
+  subset(subset = celltype_major == "CD8+ T-cells") |>
+  as.SingleCellExperiment() |>
+  logNormCounts() |>
+  SingleR(ref = sce, labels = sce$meta.cluster, assay.type.test=1, BPPARAM=MulticoreParam(80))
+seu_sub <- seu |> subset(subset = celltype_major == "CD8+ T-cells")
+seu_sub$r2 <- pred$pruned.labels
+seu_sub$r2[is.na(seu_sub$r2)] <- 'unknown'
+genes_to_check <- c('CD3D','CD8A','CD8B','MKI67','TOP2A',
+                    'TCF7','LEF1','CCR7','SELL',
+                    'SLC4A10','KLRB1','RORA','IL7R','CD27','LMNA','ZNF683','GZMB','CXCR6','ITGAE','ITGA1','CXCR5',
+                    'GZMH','GZMK','EOMES','CXCR3','IFNG','PRF1','CXCL13',
+                    'CTLA4','PDCD1','LAG3','TIGIT','LAYN','ISG15','MYL12A','MYL12B',
+                    'CD69',"HSPA6", "HSPA1B", "HSPA1A","TRDV1", "TRGV5", "TRDC","TXK")
+Idents(seu_sub) <- seu_sub$r2
+DotPlot(seu_sub, group.by = 'r2', features = genes_to_check, cluster.idents = T, idents = unique(seu_sub$r2)) + RotatedAxis()
+
+library(COSG)
+marker_cosg<-cosg(
+  seu_CD8,
+  groups='all',
+  assay='RNA',
+  slot='data',
+  mu=1,
+  n_genes_user=100)
+top_list<-c()
+for (group in colnames(marker_cosg$names)){
+  top_i<-marker_cosg$names[group][1:5,1]
+  top_list<-c(top_list,top_i)
+}
+DotPlot(seu_CD8,
+        assay = 'RNA',
+        features =  unique(top_list)) + RotatedAxis()
+
+# black list
+library(SignatuR)
+# vector of list of genes to include
+block.list.members <- c("cellCycle.G1S","cellCycle.G2M",
+                        "Mito", "Ribo", "TCR", "Immunoglobulins",
+                        "Pseudogenes", "HSP", "Non-coding")
+
+# load all signatures from SignatuR
+sigs <- GetSignature(SignatuR$Hs$Compartments)

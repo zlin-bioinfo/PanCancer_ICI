@@ -1,7 +1,7 @@
-source("./scripts/Preprocessing/Rscripts/Preprocessing.R")
-matrix_count <- data.table::fread('./data/BCC_Yost/GSE123813_bcc_scRNA_counts.txt') |> 
+source("scripts/Preprocessing/Rscripts/Preprocessing.R")
+matrix_count <- data.table::fread('data/BCC_Yost/GSE123813_bcc_scRNA_counts.txt') |> 
   tibble::column_to_rownames(var = 'V1') |> as.sparse()
-matrix_meta <- data.table::fread('./data/BCC_Yost/GSE123813_bcc_all_metadata.txt') |> 
+matrix_meta <- data.table::fread('data/BCC_Yost/GSE123813_bcc_all_metadata.txt') |> 
   tibble::column_to_rownames(var = 'cell.id') 
 seu <- CreateSeuratObject(matrix_count, meta.data = matrix_meta, min.cells=5, min.features=400) |> 
   subset(subset = orig.ident %in% c('bcc.su010.pre.tcell','bcc.su010.post.tcell'), invert = T)
@@ -19,9 +19,9 @@ seu$treatment <- 'aPD1'
 seu$modality <- 'Mono'
 rm(matrix_count);rm(matrix_meta);rm(matrix_tcr)
 seu <- preprocessing(seu)
-qs_save(seu, './data/BCC_Yost/processing.qs2')
+qs_save(seu, 'data/BCC_Yost/processing.qs2')
 
-seu <- qs_read('./data/BCC_Yost/processing.qs2')
+seu <- qs_read('data/BCC_Yost/processing.qs2')
 genes_to_check = list(c('CD3D', 'CD3E', 'CD4', 'CD8A', 'CD8B'), # T cells 'CD8B'
                       c('KLRD1','KLRB1', 'KLRC1', 'NCAM1'), # NK cells 'KLRB1', 'KLRC1', 'CD16', 'CD56', 'CD11b', 'CD11c'
                       c('CD79A','CD19', 'MS4A1'),  # B cells 
@@ -64,13 +64,13 @@ seu@meta.data <- seu@meta.data[, !grepl("UCell", colnames(seu@meta.data))]
 seu@meta.data <- seu@meta.data[, !grepl("is.pure_", colnames(seu@meta.data))]
 seu@meta.data <- seu@meta.data[, !grepl("CellOntology", colnames(seu@meta.data))]
 
-matrix_tcr <- read.table('./data/BCC_Yost/GSE123813_bcc_tcr.txt')
+matrix_tcr <- read.table('data/BCC_Yost/GSE123813_bcc_tcr.txt')
 seu$cdr3s_nt <- matrix_tcr[colnames(seu), 'cdr3s_nt']
 seu$cdr3s_aa <- matrix_tcr[colnames(seu), 'cdr3s_aa']
 seu$UMAP1 <- NULL
 seu$UMAP2 <- NULL
 # clinical
-clinical <- readxl::read_xlsx('./data/BCC_Yost/41591_2019_522_MOESM2_ESM.xlsx', skip = 2, n_max = 16)
+clinical <- readxl::read_xlsx('data/BCC_Yost/41591_2019_522_MOESM2_ESM.xlsx', skip = 2, n_max = 16)
 clinical <- clinical[clinical$Patient %in% unique(str_replace(seu$patient, 'BCC_Yost_','')),]
 clinical$`scRNA days pre treatment`[clinical$Patient == 'su001'] <- -78
 clinical$`scRNA days post treatment`[clinical$Patient == 'su003'] <- 121
@@ -78,13 +78,12 @@ clinical$interval <- as.numeric(clinical$`scRNA days post treatment`)
 seu$interval <- clinical$interval[match(str_replace(seu$patient, 'BCC_Yost_',''), clinical$Patient)]
 seu$response <- clinical$Response[match(str_replace(seu$patient, 'BCC_Yost_',''), clinical$Patient)]
 seu$response <- ifelse(seu$response == 'Yes', 'RE', 'NR')
-qs_save(seu, file = './data/BCC_Yost/seu_r1.qs2')
-seu <- qs_read('./data/BCC_Yost/seu_r1.qs2')
+qs_save(seu, file = 'data/BCC_Yost/seu_r1.qs2')
 
 # SCC_Yost
-matrix_count <- data.table::fread('./data/SCC_Yost/GSE123813_scc_scRNA_counts.txt') |>
+matrix_count <- data.table::fread('data/SCC_Yost/GSE123813_scc_scRNA_counts.txt') |>
   tibble::column_to_rownames(var = 'V1') |> as.sparse()
-matrix_meta <- data.table::fread('./data/SCC_Yost/GSE123813_scc_metadata.txt') |>
+matrix_meta <- data.table::fread('data/SCC_Yost/GSE123813_scc_metadata.txt') |>
   tibble::column_to_rownames(var = 'cell.id')
 seu <- CreateSeuratObject(matrix_count, meta.data = matrix_meta, min.cells=5, min.features=400)
 seu$subtype <- 'SCC'
@@ -101,7 +100,7 @@ seu$cancertype <- 'SCC'
 seu$res_metric <- 'RECIST'
 seu$prior <- 'Yes'
 seu$treatment <- 'aPD1'
-clinical <- readxl::read_xlsx('./data/BCC_Yost/41591_2019_522_MOESM2_ESM.xlsx', skip = 2, n_max = 16)
+clinical <- readxl::read_xlsx('data/BCC_Yost/41591_2019_522_MOESM2_ESM.xlsx', skip = 2, n_max = 16)
 clinical <- clinical[clinical$Patient %in% unique(str_replace(seu$patient, 'SCC_Yost_','')),]
 seu$interval <- clinical$interval[match(str_replace(seu$patient, 'SCC_Yost_',''), clinical$Patient)]
 seu$response <- 'NR'
@@ -112,14 +111,95 @@ seu <- seu |>
   NormalizeData() |> 
   CellCycleScoring(s.features = s.genes, g2m.features = g2m.genes)
 seu$CC.Difference <- seu$S.Score - seu$G2M.Score
-matrix_tcr <- read.table('./data/SCC_Yost/GSE123813_scc_tcr.txt')
+matrix_tcr <- read.table('data/SCC_Yost/GSE123813_scc_tcr.txt')
 seu$cdr3s_nt <- matrix_tcr[colnames(seu), 'cdr3s_nt']
 seu$cdr3s_aa <- matrix_tcr[colnames(seu), 'cdr3s_aa']
 clinical$interval <- as.numeric(clinical$`scRNA days post treatment`) 
 seu$interval <- clinical$interval[match(str_replace(seu$patient, 'SCC_Yost_',''), clinical$Patient)]
-qs_save(seu, file = './data/SCC_Yost/seu_r1.qs2')
+seu <- qs_read('data/SCC_Yost/seu_r1.qs2')
+seu[["RNA"]] <- split(seu[["RNA"]], f = seu$sample)
+seu <- seu |> 
+  NormalizeData() |> 
+  FindVariableFeatures() |> 
+  ScaleData() |>
+  RunPCA(verbose=FALSE) |>
+  IntegrateLayers(method = HarmonyIntegration, orig.reduction = "pca",
+                  new.reduction = 'harmony') |> 
+  FindNeighbors(reduction = "harmony", dims = 1:20) |>
+  FindClusters() |> 
+  RunUMAP(dims = 1:20, reduction = 'harmony') |> 
+  JoinLayers()
+DimPlot(seu, label=T)
+seu$celltype_major[seu$seurat_clusters == 8] <- 'Cycling T/NK'
+seu <- qs_read('data/SCC_Yost/seu_r2.qs2')
+seu$celltype_bped_main <- 'T'
+qs_save(seu, file = 'data/SCC_Yost/seu_r2.qs2')
 
+seu <- qs_read('data/BCC_Yost/seu_r1.qs2')
+celltype_ref <- c("Fibroblasts", "Monocytes", "Endothelial cells", "Macrophages", "NK cells", "pDC", "Pericytes", "Neutrophils", "DC", "Mast","Mural cells")
+gene_order <- read.table('data/hg38_gencode_v27.txt', header = F,row.names = 1)
+lapply(unique(seu$patient), function(pt){
+  seu_sub <- seu |>
+    subset(subset = patient == pt) |>
+    subset(subset = celltype_major %in% c("Fibroblasts", "Monocytes", "Epithelial cells", "Endothelial cells", "Macrophages", "NK cells", "pDC", "Pericytes", "Neutrophils", "DC", "Mast","Mural cells"))
+  infercnv_obj = CreateInfercnvObject(raw_counts_matrix=seu_sub@assays$RNA$counts,
+                                      annotations_file=data.frame(row.names = colnames(seu_sub), 'Celltype' = seu_sub$celltype_major),
+                                      delim="\t",
+                                      gene_order_file=gene_order,
+                                      ref_group_names=unique(seu_sub$celltype_major)[!unique(seu_sub$celltype_major) == "Epithelial cells"]
+  )
+  output_dir_full = paste0('data/BCC_Yost/infercnv/', pt)
+  infercnv_obj = suppressWarnings(infercnv::run(infercnv_obj,
+                                                cutoff=0.1,
+                                                out_dir=output_dir_full,
+                                                cluster_by_groups=T,
+                                                cluster_references = F,
+                                                analysis_mode="subclusters",
+                                                HMM=T,
+                                                HMM_type='i3',
+                                                denoise=T,
+                                                plot_steps = F,
+                                                num_threads = 20))
+})
+print('done')
 
-
+make_seurat_from_infercnv_obj <- function(infercnv_obj) {
+  return(CreateSeuratObject(counts = infercnv_obj@count.data, project="infercnv"))
+}
+folders <- list.files('data/BCC_Yost/infercnv')
+infercnv_output <- lapply(folders, function(folder){
+  tryCatch({
+    print(folder)
+    infercnv_obj <- readRDS(paste0('data/BCC_Yost/infercnv/',folder,'/run.final.infercnv_obj'))
+    seu <- add_to_seurat(make_seurat_from_infercnv_obj(infercnv_obj), 
+                         infercnv_output_path = paste0('data/BCC_Yost/infercnv/',folder), assay_name="RNA", top_n=10)
+    cnv_cols <- grep('proportion_cnv_chr', names(seu@meta.data), value = T)
+    cnvs <- seu@meta.data[, cnv_cols]
+    seu$proportion_cnv_avg <- rowMeans(cnvs)
+    cnv_cols <- grep('has_cnv_chr', names(seu@meta.data), value = T)
+    cnvs <- seu@meta.data[, cnv_cols]
+    seu$has_cnv_avg <- rowMeans(cnvs)
+    seu$celltype_major <- str_replace(seu$infercnv_subcluster, '_s\\d+','')
+    seu$malignant <- 'no'
+    seu$malignant[seu$celltype_major %in% c("Epithelial cells") & 
+                    seu$has_cnv_avg > quantile(seu$has_cnv_avg[seu$celltype_major %in% c("Fibroblasts", "Monocytes", "Endothelial cells", "Macrophages", "NK cells", "pDC", "Pericytes", "Neutrophils")], 0.9) & 
+                    seu$proportion_cnv_avg > quantile(seu$proportion_cnv_avg[seu$celltype_major %in% c("Fibroblasts", "Monocytes", "Endothelial cells", "Macrophages", "NK cells", "pDC", "Pericytes", "Neutrophils")], 0.9)] <- 'yes'
+    # visualization
+    seu@meta.data |>
+      select(celltype_major, infercnv_subcluster, proportion_cnv_avg, has_cnv_avg) |>
+      mutate(Celltype = case_when(celltype_major %in% c("Fibroblasts", "Monocytes", "Endothelial cells", "Macrophages", "NK cells", "pDC", "Pericytes", "Neutrophils") ~ 'Ref',
+                                  celltype_major %in% c("Epithelial cells") ~ celltype_major)) |>
+      tidyplot(x = Celltype, y = has_cnv_avg, color = Celltype) |>
+      add_boxplot() |>
+      add_test_pvalue(ref.group = 3) + RotatedAxis(45)
+    ggsave(paste0('data/BCC_Yost/infercnv/',folder,'/boxplot.pdf'), height = 4, width = 5)
+    return(data.frame('Malignant'=seu$malignant))
+  }, error = function(e) {
+    message("Skipping iteration for x = ", x, ": ", e$message)
+    return(NULL)  # Skip this iteration
+  })
+})
+infercnv_output <- do.call(rbind, infercnv_output)
+write.csv(infercnv_output, 'data/BCC_Yost/infercnv/infercnv_output.csv', row.names = T)
 
 

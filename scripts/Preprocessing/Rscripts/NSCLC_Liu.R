@@ -91,8 +91,8 @@ seu$modality <- 'Mono'
 seu$res_metric <- 'RECIST'
 seu$response <- 'RE'
 seu$prior <- 'No'
-
-qs_save(seu, file = './data/NSCLC_Liu/seu_r1.qs2')
+seu$celltype_major[seu$seurat_clusters == 11] <- 'Cycling T/NK'
+qs_save(seu, file = 'data/NSCLC_Liu/seu_r1.qs2')
 
 
 

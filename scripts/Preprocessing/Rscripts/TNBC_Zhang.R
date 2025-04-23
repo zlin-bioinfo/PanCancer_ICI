@@ -81,5 +81,9 @@ seu$modality <- 'Mono'
 seu$prior <- 'No'
 
 qs_save(seu, file = './data/TNBC_Zhang/seu_r1.qs2')
+seu <- qs_read('data/TNBC_Zhang/seu_r1.qs2')
+seu$time_point <- ifelse(seu$time_point == 'Post', 'On', 'Pre')
+
+
 
 

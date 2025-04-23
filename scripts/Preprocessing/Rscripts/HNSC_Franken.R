@@ -92,7 +92,7 @@ seu$response[seu$expansion == 'Yes' & seu$mri_change > 0] <- 'NR'
 unique(seu$interval)
 
 seu$prior <- 'Yes'
-seu$treatment
+seu$time_point <- ifelse(seu$time_point == 'Post', 'On', 'Pre')
 qs_save(seu, file = './data/HNSC_Franken/seu_r1.qs2')
 
 seu <- qs_read('./data/HNSC_Franken/seu_r1.qs2')

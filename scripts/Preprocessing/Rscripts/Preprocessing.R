@@ -1,5 +1,5 @@
 rm(list=ls())
-pkgs <- c('Seurat','DoubletFinder','scDblFinder','tidyr','plyr','dplyr','stringr','SingleR','scGate','ggsci','BiocParallel','harmony','RColorBrewer','SingleCellExperiment','STACAS','janitor','qs','qs2','COSG','fgsea','msigdbr','infercnv','tidyplots','ggplot2')
+pkgs <- c('Seurat','DoubletFinder','scDblFinder','tidyr','plyr','dplyr','stringr','SingleR','scGate','ggsci','BiocParallel','harmony','RColorBrewer','SingleCellExperiment','STACAS','janitor','qs','qs2','COSG','fgsea','msigdbr','infercnv','tidyplots','ggplot2','infercnv')
 unlist(lapply(pkgs, function(x) require(package = x,  character.only = TRUE, quietly = TRUE, warn.conflicts = FALSE)))
 options(warn = -1)
 options(future.globals.maxSize = 1e9)

@@ -249,7 +249,7 @@ if (dir.exists('data/BRCA_Bassez2/infercnv')==F){
 }
 celltype_ref <- c("Fibroblasts", "Monocytes", "Endothelial cells", "Macrophages", "NK cells", "pDC", "Pericytes", "Neutrophils", "DC", "Mast","Mural cells")
 gene_order <- read.table('data/hg38_gencode_v27.txt', header = F,row.names = 1)
-lapply(unique(seu$patient), function(pt){
+lapply(unique(seu$patient)[unique(seu$patient) != 'BRCA_Bassez2_34'], function(pt){
   seu_sub <- seu |>
     subset(subset = patient == pt) |>
     subset(subset = celltype_major %in% c("Fibroblasts", "Monocytes", "Epithelial cells", "Endothelial cells", "Macrophages", "NK cells", "pDC", "Pericytes", "Neutrophils", "DC", "Mast","Mural cells"))
@@ -278,6 +278,7 @@ make_seurat_from_infercnv_obj <- function(infercnv_obj) {
   return(CreateSeuratObject(counts = infercnv_obj@count.data, project="infercnv"))
 }
 folders <- list.files('data/BRCA_Bassez2/infercnv')
+folders <- folders[folders != 'BRCA_Bassez2_34']
 infercnv_output <- lapply(folders, function(folder){
   print(folder)
   infercnv_obj <- readRDS(paste0('data/BRCA_Bassez2/infercnv/',folder,'/run.final.infercnv_obj'))

@@ -5,11 +5,11 @@ options(warn = -1)
 
 # Reference Preparation
 # Myeloids (normalized)
-directory <- './data/GSE154763/'
+directory <- 'data/GSE154763/'
 file_list <- list.files(directory, pattern="expression.csv$")[-1]
 expression_list <- lapply(file_list, function(x){t(read.csv(paste0(directory, x), row.names = 1))})
 meta_list <- list.files(directory, pattern="metadata.csv$")[-1]
-metadata_list <- lapply(meta_list, function(x){read.csv(paste0(directory, x),row.names = 1)})
+metadata_list <- lapply(meta_list, function(x){read.csv(paste0(directory, x), row.names = 1)})
 
 ref_list <- c()
 for (i in 1:length(file_list)){
@@ -17,11 +17,11 @@ for (i in 1:length(file_list)){
   sce <- SingleCellExperiment(assays = list(logcounts = expression_list[[i]]), colData = metadata_list[[i]])
   sce$subtype <- sapply(strsplit(sce$MajorCluster,'_'), function(x){paste0(x[2],'_',x[3])})
   sce$majortype <- sapply(strsplit(sce$MajorCluster,'_'), function(x){x[2]})
-  sce <- sce[, !sce$subtype %in% c('Mast_KIT','pDC_LILRA4')]
+  # sce <- sce[, !sce$subtype %in% c('Mast_KIT','pDC_LILRA4')]
   ref_list <- c(ref_list, sce)
 }
 ref_major <- lapply(ref_list, function(x){aggregateReference(x, x$majortype)})
-qsave(ref_major, "./data/Ref_SingleR/Myeloids_major_ref.qs")
+qs_save(ref_major, "data/Ref_SingleR/Myeloids_major_ref.qs2")
 ref_mono <- list()
 for (i in 1:length(ref_list)){
   sce <- ref_list[[i]]
@@ -29,7 +29,7 @@ for (i in 1:length(ref_list)){
   sce <- aggregateReference(sce, sce$subtype)
   ref_mono <- c(ref_mono, sce)
 }
-qsave(ref_mono, "./data/Ref_SingleR/Myeloids_mono_ref.qs")
+qsave(ref_mono, "data/Ref_SingleR/Myeloids_mono_ref.qs")
 ref_macro <- list()
 for (i in 1:length(ref_list)){
   sce <- ref_list[[i]]
@@ -37,7 +37,7 @@ for (i in 1:length(ref_list)){
   sce <- aggregateReference(sce, sce$subtype)
   ref_macro <- c(ref_macro, sce)
 }
-qsave(ref_macro, "./data/Ref_SingleR/Myeloids_macro_ref.qs")
+qsave(ref_macro, "data/Ref_SingleR/Myeloids_macro_ref.qs")
 # cDC2
 expr <- list.files(directory, pattern="expression.csv$")[1]
 expr <- t(read.csv(paste0(directory, expr), row.names = 1))
@@ -51,12 +51,12 @@ for (i in 1:length(unique(sce$cancer))){
   sce_sub <- aggregateReference(sce_sub, sce_sub$subtype)
   ref_cdc2 <- c(ref_cdc2, sce_sub)
 }
-qsave(ref_cdc2, "./data/Ref_SingleR/Myeloids_cdc2_ref.qs")
+qsave(ref_cdc2, "data/Ref_SingleR/Myeloids_cdc2_ref.qs")
 
 #T/NK (counts)
-file_list <- list.files("./data/GSE156728(ref_Tcell)", pattern = 'counts', full.names = T)
+file_list <- list.files("data/GSE156728(ref_Tcell)", pattern = 'counts', full.names = T)
 cancertype <- unique(str_split(file_list,'_',simplify = T)[,3])
-df_metadata <- data.table::fread('./data/GSE156728(ref_Tcell)/GSE156728_metadata.txt.gz') %>%
+df_metadata <- data.table::fread('data/GSE156728(ref_Tcell)/GSE156728_metadata.txt.gz') %>%
   filter(cancerType %in% cancertype, loc=='T') %>% 
   column_to_rownames(var = 'cellID')
 df_metadata$meta.cluster <- str_replace_all(df_metadata$meta.cluster, '\\.', '_')
@@ -99,7 +99,7 @@ df_metadata <- filter(df_metadata, !meta.cluster %in% c('uncharacterized', 'CD4_
 # DotPlot(seu, group.by = 'meta.cluster', features = genes_to_check, cluster.idents = T, idents = unique(seu$meta.cluster)) + RotatedAxis()
 
 # 
-# seu_CD8 <- readRDS('./data/CD4_CD8_NM/CD8.rds')
+# seu_CD8 <- readRDS('data/CD4_CD8_NM/CD8.rds')
 # seu_CD8 <- subset(seu_CD8, subset = TissueType %in% c('Metastatic tumor tissue', 'Primary tumor tissue'))
 # Idents(seu_CD8) <- seu_CD8$cell.type
 # genes_to_check <- c('CD3D','CD8A','CD8B','MKI67','TOP2A',
@@ -145,7 +145,7 @@ ref_T <- lapply(ref_list_T, function(sce){
   sce <-aggregateReference(sce, sce$major)
   return(sce)
 })
-qs_save(ref_T, "./data/Ref_SingleR/T_ref.qs2")
+qs_save(ref_T, "data/Ref_SingleR/T_ref.qs2")
 # Fine level
 # ref_CD4 <- lapply(file_list[str_detect(file_list, 'CD4')], function(x){
 #   cancertype <- unique(str_split(x,'_',simplify = T)[,3])
@@ -156,7 +156,7 @@ qs_save(ref_T, "./data/Ref_SingleR/T_ref.qs2")
 #   return(sce)
 # })
 
-# qs_save(ref_CD4, "./data/Ref_SingleR/T_CD4_ref.qs2")
+# qs_save(ref_CD4, "data/Ref_SingleR/T_CD4_ref.qs2")
 
 seu_CD4 <- readRDS('data/CD4_CD8_NM/CD4.rds')
 Idents(seu_CD4) <- seu_CD4$cell.type
@@ -207,10 +207,10 @@ sce_nm <- seu_CD8 |> as.SingleCellExperiment()
 sce_nm <- sce_nm |> aggregateReference(sce_nm$cell.type)
 
 sce_list <- list(sce_sci, sce_nm)
-qs_save(sce_list, "./data/Ref_SingleR/T_CD8_ref.qs2")
+qs_save(sce_list, "data/Ref_SingleR/T_CD8_ref.qs2")
 
 # NK
-data_dir <- './data/GSE212890(ref_NK)/'
+data_dir <- 'data/GSE212890(ref_NK)/'
 list.files(data_dir) 
 matrix_count <- readMM(paste0(data_dir, list.files(data_dir)[str_detect(list.files(data_dir) , 'counts')])) 
 features <- read.csv(paste0(data_dir, list.files(data_dir)[str_detect(list.files(data_dir) , 'genes')]))
@@ -234,19 +234,19 @@ ref_main_NK <- lapply(ref_NK, function(x) {
   return(sce)
 })
 
-qs_save(ref_main_NK, "./data/Ref_SingleR/NK_main_ref.qs2")
+qs_save(ref_main_NK, "data/Ref_SingleR/NK_main_ref.qs2")
 ref_fine_NK <- lapply(ref_NK, function(x) {
   sce <- logNormCounts(x) %>% aggregateReference(.$celltype)
   return(sce)
 })
-qs_save(ref_fine_NK, "./data/Ref_SingleR/NK_fine_ref.qs2")
+qs_save(ref_fine_NK, "data/Ref_SingleR/NK_fine_ref.qs2")
 
 # CAFs
-metadata <- read.table(gzfile('./data/GSE210347(ref_CAF)/GSE210347_meta.txt.gz'), row.names = 1, header = T) %>%
+metadata <- read.table(gzfile('data/GSE210347(ref_CAF)/GSE210347_meta.txt.gz'), row.names = 1, header = T) %>%
   filter(cluster %in% c('c1','c2','c4','c6','c7','c8'), group == 'Tumor')
 metadata$cluster <- mapvalues(metadata$cluster,from = c('c1','c2','c4','c6','c7','c8'),
                               to = c('Myofibroblast','CAF_inflammatory','CAF_adipogenic','CAF_EndMT','CAF_PN','CAF_AP'))
-matrix_count <- readRDS('./data/GSE210347(ref_CAF)/GSE210347_counts.Rds')[, rownames(metadata)]
+matrix_count <- readRDS('data/GSE210347(ref_CAF)/GSE210347_counts.Rds')[, rownames(metadata)]
 caf_ref <- CreateSeuratObject(counts = matrix_count, meta.data = metadata)
 sce <- SingleCellExperiment(assay = list(counts = matrix_count), colData = metadata)
 sce$dataset <- str_split(sce$SampleID, "_", simplify = T)[,1]
@@ -256,7 +256,7 @@ ref_CAF <- lapply(dataset, function(x) {
   sce <- logNormCounts(sce) %>% aggregateReference(.$cluster)
   return(sce)
 })
-qsave(ref_CAF, "./data/Ref_SingleR/CAF_ref.qs")
+qsave(ref_CAF, "data/Ref_SingleR/CAF_ref.qs")
 
 # DotPlot(endo_main, group.by = 'celltype', features = c('PROX1', 'LYVE1','FLT4','CCL21',
 #                                                            'VWF','PECAM1','PLVAP','CDH5',
@@ -268,20 +268,87 @@ qsave(ref_CAF, "./data/Ref_SingleR/CAF_ref.qs")
 #                                                            'RGS5','NDUFA4L2','MYH11','ACTA2')) + RotatedAxis()
 
 # CAF
-metadata <- read.table(gzfile('./data/GSE210347(ref_CAF)/GSE210347_meta.txt.gz'), row.names = 1, header = T) %>%
+metadata <- read.table(gzfile('data/GSE210347(ref_CAF)/GSE210347_meta.txt.gz'), row.names = 1, header = T) %>%
   filter(cluster %in% c('c1','c2','c4','c6','c7','c8'), group == 'Tumor')
 metadata$cluster <- mapvalues(metadata$cluster,from = c('c1','c2','c4','c6','c7','c8'),
                               to = c('Myofibroblast','CAF_inflammatory','CAF_adipogenic','CAF_EndMT','CAF_PN','CAF_AP'))
-matrix_count <- readRDS('./data/GSE210347(ref_CAF)/GSE210347_counts.Rds')[, rownames(metadata)]
+matrix_count <- readRDS('data/GSE210347(ref_CAF)/GSE210347_counts.Rds')[, rownames(metadata)]
 seu <- CreateSeuratObject(counts = matrix_count, meta.data = metadata)
 seu$dataset <- str_split(seu$SampleID, "_", simplify = T)[,1]
 sce <- seu |> as.SingleCellExperiment() |> logNormCounts() 
 sce <- sce |> aggregateReference(sce$cluster)
-qsave(sce, file = './data/Ref_SingleR/Fibro.qs')
+qsave(sce, file = 'data/Ref_SingleR/Fibro.qs')
+
+# https://doi.org/10.1016/j.ccell.2024.08.020
+matrix_count <- data.table::fread('data/GSE246215/GSE246215_Fibroblast_counts.csv.gz') |> tibble::column_to_rownames(var = 'GeneName') |> as.sparse()
+metadata <- read.csv('data/GSE246215/GSE246215_Fibroblast_metadata.csv.gz') |> tibble::column_to_rownames(var = 'CellName')
+seu <- CreateSeuratObject(counts = matrix_count, meta.data = metadata)
+seu$Cluster[seu$Cluster == 'c13'] <- 'CAF-ap'
+seu$Cluster[seu$Cluster == 'c08'] <- 'Pericytes'
+seu$Cluster[seu$Cluster == 'c04'] <- 'CAF-desmo'
+seu$Cluster[seu$Cluster %in% c('c01','c18')] <- 'SMC'
+seu$Cluster[seu$Cluster == 'c07'] <- 'iCAF_IL6'
+seu$Cluster[seu$Cluster == 'c19'] <- 'iCAF_MMP1'
+seu$Cluster[seu$Cluster == 'c11'] <- 'Myofibroblasts'
+seu$Cluster[seu$Cluster == 'c05'] <- 'CAF-prog'
+seu$Cluster[seu$Cluster == 'c16'] <- 'CAF_SFRP2'
+seu <- subset(seu, subset = Cluster %in% c('c09','c17','c02','c10','c15','c12','c06','c03','c20','c14'), invert=T)
+Idents(seu) <- seu$Cluster
+seu <- NormalizeData(seu)
+sce <- seu |> as.SingleCellExperiment() |> logNormCounts() 
+sce <- sce |> aggregateReference(sce$Cluster)
+qsave(sce, "data/Ref_SingleR/CAF_ref_CC.qs")
+
+# seu <- qs_read('data/NSCLC_Yan/seu_r1.qs2')
+# seu <- subset(seu, subset = celltype_major %in% c('Pericytes','Myocytes','Fibroblasts'))
+# pred <- SingleR(seu |> as.SingleCellExperiment(), ref = sce, labels = sce$Cluster,BPPARAM=MulticoreParam(20))
+# pred <- SingleR(seu |> as.SingleCellExperiment(), ref = sce, labels = sce$label)
+# seu$celltype_r2_pseu <- pred$pruned.labels
+# seu$celltype_r2_pseu[is.na(seu$celltype_r2_pseu)] <- 'Unknown'
+# 
+# seu$celltype_r2 <- pred$pruned.labels
+# seu$celltype_r2[is.na(seu$celltype_r2)] <- 'Unknown'
+# DotPlot(seu, 
+#         assay = 'RNA',
+#         features =  c('COL15A1','PI16','CD34','CD55','LRRC15','IL6','HOPX','HSPA6','TGFB1','AKR1C1','FOSL1','LIF','WNT5A','GREM1','CXCL1','CXCL3','CXCL8','NFKB1','MMP1','FOXP2','LEF1','EGR3','EGR2','ACTA2','MYH11','FAP','SFRP2','SFRP1','SFRP4','IGF1','IGF2','IL1B','CD74','RGS5'), 
+#         group.by = 'celltype_r2') + RotatedAxis() + theme(axis.text.x = element_text(size = 8))
+# DotPlot(seu, 
+#         assay = 'RNA',
+#         features =  c('COL15A1','PI16','LRRC15','IL6','HOPX','HSPA6','TGFB1','AKR1C1','FOSL1','LIF','WNT5A','GREM1','CXCL1','CXCL3','CXCL8','NFKB1','MMP1','FOXP2','CD34','CD55','LEF1','EGR3','EGR2','ACTA2','MYH11','FAP','SFRP2','SFRP1','SFRP4','IGF1','IGF2','IL1B','CD74','RGS5'), 
+#         group.by = 'celltype_r2_pseu') + RotatedAxis() + theme(axis.text.x = element_text(size = 8))
+# 
+# seu <- NormalizeData(seu)
+# library(COSG) 
+# 
+# marker_cosg<-cosg(
+#   seu,
+#   groups='all',
+#   assay='RNA',
+#   slot='data',
+#   mu=1,
+#   n_genes_user=100)
+# top_list<-c()
+# for (group in colnames(marker_cosg$names)){
+#   top_i<-marker_cosg$names[group][1:3,1]
+#   top_list<-c(top_list,top_i)
+# }
+# 
+# DotPlot(seu, 
+#         assay = 'RNA',
+#         features = unique(top_list)) + RotatedAxis() + theme(axis.text.x = element_text(size = 8))
+# seu <- NormalizeData(seu)
+# DotPlot(seu, 
+#         assay = 'RNA',
+#         features =  c('COL15A1','PI16','LRRC15','IL6','HOPX','HSPA6','TGFB1','AKR1C1','FOSL1','LIF','WNT5A','GREM1','CXCL1','CXCL3','CXCL8','NFKB1','MMP1','FOXP2','CD34','CD55','LEF1','EGR3','EGR2','ACTA2','MYH11','FAP','SFRP2','SFRP1','SFRP4','IGF1','IGF2','IL1B','CD74','RGS5'), 
+#         group.by = 'Cluster') + RotatedAxis() + theme(axis.text.x = element_text(size = 8))
+# DotPlot(seu, 
+#         assay = 'RNA',
+#         features =  c(unique(top_list),'CD74','LRRC15','MMP11','IL6','ACTA2'), group.by = 'Cluster') + RotatedAxis() + theme(axis.text.x = element_text(size = 8))
+
 
 # Pan-cancer Endothelial cells
 seu <- schard::h5ad2seurat('/bigdata/zlin//PanCancer_ICI/data/pan-cancer_Endo/NSR.panE.exprs.all.h5ad.gz')
-metadata <- read.csv('./data/pan-cancer_Endo/NSR.panE.obs.meta.csv', row.names = 1)
+metadata <- read.csv('data/pan-cancer_Endo/NSR.panE.obs.meta.csv', row.names = 1)
 seu <- CreateSeuratObject(counts = seu@assays$RNA@counts, meta.data = metadata)
 seu <- subset(seu, subset = tissue == 'T')
 seu$major <- ifelse(seu$cellType.major %in% c('veins', 'hypoxia', 'tip cell', 'arteries', 'capillaries'), 'vascular', seu$cellType.major)
@@ -293,7 +360,7 @@ ref_list <- lapply(unique(seu$Dataset), function(dataset){
   sce <- sce |> aggregateReference(labels = sce$major)
   return(sce)
 })
-qsave(ref_list, file = './data/Ref_SingleR/Endo_major.qs')
+qsave(ref_list, file = 'data/Ref_SingleR/Endo_major.qs')
 # Endo_vascular
 ref_list <- lapply(unique(seu$Dataset), function(dataset){
   print(dataset)
@@ -303,15 +370,15 @@ ref_list <- lapply(unique(seu$Dataset), function(dataset){
   sce <- sce |> aggregateReference(labels = sce$cellType.major)
   return(sce)
 })
-qsave(ref_list, file = './data/Ref_SingleR/Endo_vascular.qs')
+qsave(ref_list, file = 'data/Ref_SingleR/Endo_vascular.qs')
 # Mural cells
-endo_mc <- readRDS('./data/ref_Endo/panMC.rds')
+endo_mc <- readRDS('data/ref_Endo/panMC.rds')
 endo_mc$dataset <- str_split(endo_mc$DonorID, '_', simplify = T)[,1]
 sce <- endo_mc |> 
   as.SingleCellExperiment() |> 
   logNormCounts() 
 sce <- sce |> aggregateReference(labels = sce$Anno_Tier1)
-qsave(sce, file = './data/Ref_SingleR/Mural_ref.qs')
+qsave(sce, file = 'data/Ref_SingleR/Mural_ref.qs')
 
 # # Endothelial (GSE164690)
 # # 15 samples had paired immune and non-immune cells, as well as matched peripheral blood leukocytes (PBL).
@@ -367,11 +434,11 @@ qsave(sce, file = './data/Ref_SingleR/Mural_ref.qs')
 # seu$subtype[seu$RNA_snn_res.0.3 %in% c('1','4','5','7')] <- 'EC_vascular'
 # DimPlot(seu, group.by = 'subtype')
 # ref_Endo <- as.SingleCellExperiment(seu) %>% logNormCounts() %>% aggregateReference(.$subtype)
-# qsave(ref_Endo, "./data/Ref_SingleR/Endo_ref.qs")
+# qsave(ref_Endo, "data/Ref_SingleR/Endo_ref.qs")
 
 # B cells
-# seu <- readRDS("./data/blueprint_B/scRNA_data/panB_Plasma_cell_selected_scRNA_processed_data.rds")
-seu <- readRDS("./data/blueprint_B/scRNA_data/panB_scRNA_processed_data.rds")
+# seu <- readRDS("data/blueprint_B/scRNA_data/panB_Plasma_cell_selected_scRNA_processed_data.rds")
+seu <- readRDS("data/blueprint_B/scRNA_data/panB_scRNA_processed_data.rds")
 genes_to_check = c('TCL1A','YBX3','FCER2',
                    'CD27','CD19','IFIT3', 'IFI44L', 'STAT1', 'ISG15',
                    'HSPA1A','DNAJB1','HSPA1B',
@@ -399,7 +466,7 @@ ref_B_major <- lapply(unique(seu$dataid), function(x) {
   sce <- aggregateReference(sce,sce$majortype)
   return(sce)
 })
-qsave(ref_B_major, "./data/Ref_SingleR/Pan_B_major.qs")
+qsave(ref_B_major, "data/Ref_SingleR/Pan_B_major.qs")
 
 ref_plasma <- lapply(unique(seu$dataid), function(x) {
   print(x)
@@ -409,7 +476,7 @@ ref_plasma <- lapply(unique(seu$dataid), function(x) {
   sce <- aggregateReference(sce,sce$celltype)
   return(sce)
 })
-qsave(ref_plasma, "./data/Ref_SingleR/Plasma.qs")
+qsave(ref_plasma, "data/Ref_SingleR/Plasma.qs")
 
 seu_gcb <- subset(seu, subset = majortype == 'GCB')
 ref_GCB <- lapply(unique(seu_gcb$dataid)[table(seu_gcb$dataid)>50], function(x) {
@@ -420,7 +487,7 @@ ref_GCB <- lapply(unique(seu_gcb$dataid)[table(seu_gcb$dataid)>50], function(x) 
   sce <- aggregateReference(sce,sce$celltype)
   return(sce)
 })
-qsave(ref_GCB, "./data/Ref_SingleR/GCB.qs")
+qsave(ref_GCB, "data/Ref_SingleR/GCB.qs")
 
 seu_b <- subset(seu, subset = majortype == 'B')
 ref_B <- lapply(names(table(seu_b$dataid))[table(seu_b$dataid)>50], function(x) {
@@ -431,11 +498,11 @@ ref_B <- lapply(names(table(seu_b$dataid))[table(seu_b$dataid)>50], function(x) 
   sce <- aggregateReference(sce,sce$celltype)
   return(sce)
 })
-qsave(ref_B, "./data/Ref_SingleR/B.qs")
+qsave(ref_B, "data/Ref_SingleR/B.qs")
 
 # B cells (GSE233236)
-count_matrix <- Read10X('./data/GSE233236(ref_B)/', gene.column=1)
-metadata <- data.table::fread('./data/GSE233236(ref_B)/metadata.tsv.gz')
+count_matrix <- Read10X('data/GSE233236(ref_B)/', gene.column=1)
+metadata <- data.table::fread('data/GSE233236(ref_B)/metadata.tsv.gz')
 metadata <- tibble::column_to_rownames(metadata, var = 'V1')
 seu <- CreateSeuratObject(counts = count_matrix, meta.data = metadata)
 seu <- subset(seu, subset = Tissue == 'Tumor')  
@@ -452,26 +519,26 @@ ref_list <- lapply(unique(seu$dataset), function(ds){
   sce <- sce |> aggregateReference(labels = sce$major)
   return(sce)
 })
-qsave(ref_list, "./data/Ref_SingleR/Pan_B-major.qs")
+qsave(ref_list, "data/Ref_SingleR/Pan_B-major.qs")
 
 sce <- subset(seu, subset = major %in% 'naive/memory') |> 
   as.SingleCellExperiment() |> 
   logNormCounts() 
 sce <- sce |> aggregateReference(sce$Annotation)
-qsave(sce, "./data/Ref_SingleR/B_naive-memory.qs")
+qsave(sce, "data/Ref_SingleR/B_naive-memory.qs")
 
 sce <- subset(seu, subset = major %in% 'cycling/gc') |> 
   as.SingleCellExperiment() |> 
   logNormCounts() 
 sce <- sce |> aggregateReference(sce$Annotation)
-qsave(sce, "./data/Ref_SingleR/B_cycling-gc.qs")
+qsave(sce, "data/Ref_SingleR/B_cycling-gc.qs")
 
-asc <- c("PC_IGHG", "PC_IGHA", "early-PC_RGS13", "early-PC_LTB", "early-PC_MS4A1low", "cycling_ASC")
+asc <- c("PC_IGHG", "PC_IGHA", "early-PC_RGS13", "early-PC_LTB", "cycling_ASC")
 sce <- subset(seu, subset = Annotation %in% asc) |> 
   as.SingleCellExperiment() |> 
   logNormCounts() 
 sce <- sce |> aggregateReference(sce$Annotation)
-qsave(sce, "./data/Ref_SingleR/B_asc.qs")
+qsave(sce, "data/Ref_SingleR/B_asc.qs")
 
 
 

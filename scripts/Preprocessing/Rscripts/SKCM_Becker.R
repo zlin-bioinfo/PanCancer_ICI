@@ -240,5 +240,3 @@ infercnv_output <- do.call(rbind, infercnv_output)
 write.csv(infercnv_output, 'data/SKCM_Becker/infercnv/infercnv_output.csv', row.names = T)
 
 
-
-

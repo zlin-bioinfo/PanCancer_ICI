@@ -1,162 +1,565 @@
 rm(list=ls())
-pkgs <- c('tidyr','plyr','dplyr','stringr','ggsci','patchwork','ggplot2','dittoSeq','RColorBrewer','tibble','pheatmap','qs','MetBrewer','viridis','forcats','lmerTest','grid','corrplot','ComplexHeatmap','colorRamp2','corrr','igraph','ggraph','tidygraph','graphlayouts','ggforce','ggnetwork','ggnewscale')
+pkgs <- c('tidyr','plyr','dplyr','stringr','ggsci','patchwork','ggplot2','RColorBrewer','tibble','pheatmap','qs2','MetBrewer','viridis','forcats','grid','corrplot','ComplexHeatmap','colorRamp2','corrr','igraph','ggraph','tidygraph','graphlayouts','ggforce','ggnetwork','ggnewscale')
 unlist(lapply(pkgs, function(x) require(package = x,  character.only = TRUE, quietly = TRUE, warn.conflicts = FALSE)))
 options(warn = -1)
 
-t <- c('CD4_Naive','CD4_Tm_CREM-','CD4_Tm_AREG','CD4_Tm_TIMP1','CD4_Tm_CAPG','CD4_Tm_CREM', 'CD4_Tm_CCL5', 
-       'CD4_Tem_GZMK', 'CD4_Temra_CX3CR1', 'CD4_pre-Tfh_CXCR5','CD4_Tfh_CXCR5','CD4_TfhTh1_IFNG', 
-       'CD4_Treg_Early', 'CD4_Treg_ISG15', 'CD4_Treg_TNFRSF9', 
-       'CD4_Th_ISG15', 'CD4_Th17_IL26','CD4_Th17_CCR6','CD4_Prolif',
-       'CD8_Prolif', 'CD8_Naive', 'CD8_Tcm_IL7R', 'CD8_Trm_ZNF683', 'CD8_Tem_Early', 'CD8_Tem_GZMK', 
-       'CD8_Tpex_TCF7', 'CD8_Tex_GZMK', 'CD8_Tex_CXCL13',
-       'CD8_Tex_ISG15', 'CD8_Temra_CX3CR1', 'CD8_NK-like', 
-       'MAIT', 'gdT')
-nk <- c('NK_CD56loCD16hi', 'NK_CD56hiCD16lo')
-bplasma <- c('B_Naive', 'B_ISG15', 'B_HSP', 'B_MT2A', 'ACB_EGR1', 'ACB_NR4A2', 'ACB_CCR7', 'B_Memory', 'B_AtM',
-             'GCB_Pre', 'GCB_SUGCT', 'GCB_LMO2', 'GCB_Prolif', 'Plasmablast', 'Plasma_cell')
+t <- c('CD4_T-naive','CD4_Tcm','CD4_Treg','CD4_T-ISG','CD4_Tfh','CD4_Tstr','CD4_Tctl','CD4_Th17',
+           'CD8_T-naive','CD8_Tm','CD8_Trm','CD8_Tem-early','CD8_Tem','CD8_Tpex',
+           "CD8_Tex_CXCL13", "CD8_Tex_GZMK",'CD8_Temra','CD8_T-ISG','CD8_Tstr',
+           "CD8_NK-like",'MAIT','gdT')
+nk <- c('NK_CD56loCD16hi','NK_CD56hiCD16lo', 'Cycling T/NK')
+bplasma <- c("B-naive", "B-ISG", "B-HSP", "B_MT2A", 
+             "ACB_EGR1", "ACB_NR4A2", "ACB_CCR7", "B-memory", "B-AtM", 
+             "GCB-pre", "GCB-DZ_SUGCT", "GCB-LZ_LMO2",
+             "GCB-cycling", "PC-cycling",
+             "PC-early_RGS13", "PC-early_LTB", "PC_IGHG", "PC_IGHA")
 mye <- c('Mast','pDC','cDC1', 
-         'cDC2_CD1C', 'cDC2_IL1B','cDC2_ISG15', 'cDC2_CXCL9', 'DC_LC-like', 'MigrDC', 'MoDC', 
+         'cDC2_CD1C', 'cDC2_IL1B','cDC2-ISG', 'cDC2_CXCL9', 'DC_LC-like', 'mregDC', 'MoDC', 
          'Mono_CD14', 'Mono_CD14CD16', 'Mono_CD16',
-         'Macro_IL1B', 'Macro_INHBA', 'Macro_SPP1', 'Macro_FN1', 'Macro_ISG15', 
-         'Macro_TNF', 'Macro_LYVE1', 'Macro_C1QC', 'Macro_TREM2')
-nonimmune <- c('Endo_lymphatic','Endo_artery','Endo_capillary','Endo_tip','Endo_vein',
-               'EndMT','CAF_inflammatory', 'CAF_adipogenic', 'CAF_PN', 'CAF_AP', 'Myofibroblast')
-meta_int <- read.csv('/bigdata/zlin/PanCancer_ICI/tables/meta_int.csv') 
-meta_int |> 
-  distinct(celltype_r2, sample, .keep_all = T) |> 
-  select(freq_r2_comp, dataset, response, modality, int_cat, patient, time_point, celltype_r2) |> 
-  filter(celltype_r2 %in% t[grepl('CD4', t)]) |> 
-  ggplot(aes(x = reorder(celltype_r2, freq_r2_comp, FUN = median, decreasing = T), y = freq_r2_comp)) + 
-  geom_jitter(size = 0.1) + geom_boxplot(aes(fill = celltype_r2), alpha = 0.4, show.legend = F) + 
-  theme_minimal() + theme(plot.title = element_text(hjust = 0.5),
-                          axis.text.x = element_text(size = 8, colour = 'black')) + 
-  ggtitle('CD4+T Cells') +
-  Seurat::RotatedAxis() + xlab('') + ylab('Relative Frequency')
-ggsave('/bigdata/zlin/PanCancer_ICI/figures/Abundance/cd4t.pdf', width = 8, height = 5)
-
-meta_int |> 
-  distinct(celltype_r2, sample, .keep_all = T) |> 
-  select(freq_r2_comp, dataset, response, modality, int_cat, patient, time_point, celltype_r2) |> 
-  filter(celltype_r2 %in% t[!grepl('CD4', t)]) |> 
-  ggplot(aes(x = reorder(celltype_r2, freq_r2_comp, FUN = median, decreasing = T), y = freq_r2_comp)) + 
-  geom_jitter(size = 0.1) + geom_boxplot(aes(fill = celltype_r2), alpha = 0.4, show.legend = F) + 
-  theme_minimal() + theme(plot.title = element_text(hjust = 0.5),
-                          axis.text.x = element_text(size = 8, colour = 'black')) + 
-  ggtitle('CD8+T&NK Cells') +
-  Seurat::RotatedAxis() + xlab('') + ylab('Relative Frequency')
-ggsave('/bigdata/zlin/PanCancer_ICI/figures/Abundance/cd8t.pdf', width = 7.5, height = 5)
-
-meta_int |> 
-  distinct(celltype_r2, sample, .keep_all = T) |> 
-  select(freq_r2_comp, dataset, response, modality, int_cat, patient, time_point, celltype_r2) |> 
-  filter(celltype_r2 %in% mye) |> 
-  ggplot(aes(x = reorder(celltype_r2, freq_r2_comp, FUN = median, decreasing = T), y = freq_r2_comp)) + 
-  geom_jitter(size = 0.1) + geom_boxplot(aes(fill = celltype_r2), alpha = 0.4, show.legend = F) + 
-  theme_minimal() + theme(plot.title = element_text(hjust = 0.5),
-                          axis.text.x = element_text(size = 8, colour = 'black')) + 
-  ggtitle('Myeloid Cells') +
-  Seurat::RotatedAxis() + xlab('') + ylab('Relative Frequency')
-ggsave('/bigdata/zlin/PanCancer_ICI/figures/Abundance/mye.pdf', width = 8, height = 5)
-
-meta_int |> 
-  distinct(celltype_r2, sample, .keep_all = T) |> 
-  select(freq_r2_comp, dataset, response, modality, int_cat, patient, time_point, celltype_r2) |> 
-  filter(celltype_r2 %in% bplasma) |> 
-  ggplot(aes(x = reorder(celltype_r2, freq_r2_comp, FUN = median, decreasing = T), y = freq_r2_comp)) + 
-  geom_jitter(size = 0.1) + geom_boxplot(aes(fill = celltype_r2), alpha = 0.4, show.legend = F) + 
-  theme_minimal() + theme(plot.title = element_text(hjust = 0.5),
-                          axis.text.x = element_text(size = 8, colour = 'black')) + 
-  ggtitle('B Lymphocytes') +
-  Seurat::RotatedAxis() + xlab('') + ylab('Relative Frequency')
-ggsave('/bigdata/zlin/PanCancer_ICI/figures/Abundance/bplasma.pdf', width = 8, height = 5)
-
-meta_int |> 
-  distinct(celltype_r2, sample, .keep_all = T) |> 
-  select(freq_r2_comp, dataset, response, modality, int_cat, patient, time_point, celltype_r2) |> 
-  filter(celltype_r2 %in% nonimmune) |> 
-  ggplot(aes(x = reorder(celltype_r2, freq_r2_comp, FUN = median, decreasing = T), y = freq_r2_comp)) + 
-  geom_jitter(size = 0.1) + geom_boxplot(aes(fill = celltype_r2), alpha = 0.4, show.legend = F) + 
-  theme_minimal() + theme(plot.title = element_text(hjust = 0.5),
-                          axis.text.x = element_text(size = 8, colour = 'black')) + 
-  ggtitle('Non-immune') +
-  Seurat::RotatedAxis() + xlab('') + ylab('Relative Frequency')
-ggsave('/bigdata/zlin/PanCancer_ICI/figures/Abundance/non-immune.pdf', width = 5, height = 3.5)
+         'Macro_IL1B', 'Macro_INHBA', 'Macro_SPP1', 'Macro_FN1', 'Macro-ISG', 
+         'Macro_TNF', 'Macro_LYVE1', 'Macro_C1QC', 'Macro_TREM2', 'Cycling myeloids')
+nonimmune <- c("Endo-lymphatic", "Endo-artery", "Endo-capillary", "Endo-tip", "Endo-vein",
+               "Pericytes","SMC", "Myofibroblasts", "CAF_SFRP2", 
+               "CAF-prog", "CAF-desmo", "iCAF_MMP1", "iCAF_IL6", "CAF-ap")
+# meta_int <- read.csv('tables/meta_all.csv') 
+# meta_int |> 
+#   distinct(celltype_r2, sample, .keep_all = T) |> 
+#   select(freq_r2_comp, dataset, response, modality, int_cat, patient, time_point, celltype_r2) |> 
+#   filter(celltype_r2 %in% t[grepl('CD4', t)]) |> 
+#   ggplot(aes(x = reorder(celltype_r2, freq_r2_comp, FUN = median, decreasing = T), y = freq_r2_comp)) + 
+#   geom_jitter(size = 0.1) + geom_boxplot(aes(fill = celltype_r2), alpha = 0.4, show.legend = F) + 
+#   theme_minimal() + theme(plot.title = element_text(hjust = 0.5),
+#                           axis.text.x = element_text(size = 8, colour = 'black')) + 
+#   ggtitle('CD4+T Cells') +
+#   Seurat::RotatedAxis() + xlab('') + ylab('Relative Frequency')
+# ggsave('figures/Abundance/cd4t.pdf', width = 8, height = 5)
+# 
+# meta_int |> 
+#   distinct(celltype_r2, sample, .keep_all = T) |> 
+#   select(freq_r2_comp, dataset, response, modality, int_cat, patient, time_point, celltype_r2) |> 
+#   filter(celltype_r2 %in% t[!grepl('CD4', t)]) |> 
+#   ggplot(aes(x = reorder(celltype_r2, freq_r2_comp, FUN = median, decreasing = T), y = freq_r2_comp)) + 
+#   geom_jitter(size = 0.1) + geom_boxplot(aes(fill = celltype_r2), alpha = 0.4, show.legend = F) + 
+#   theme_minimal() + theme(plot.title = element_text(hjust = 0.5),
+#                           axis.text.x = element_text(size = 8, colour = 'black')) + 
+#   ggtitle('CD8+T&NK Cells') +
+#   Seurat::RotatedAxis() + xlab('') + ylab('Relative Frequency')
+# ggsave('figures/Abundance/cd8t.pdf', width = 7.5, height = 5)
+# 
+# meta_int |> 
+#   distinct(celltype_r2, sample, .keep_all = T) |> 
+#   select(freq_r2_comp, dataset, response, modality, int_cat, patient, time_point, celltype_r2) |> 
+#   filter(celltype_r2 %in% mye) |> 
+#   ggplot(aes(x = reorder(celltype_r2, freq_r2_comp, FUN = median, decreasing = T), y = freq_r2_comp)) + 
+#   geom_jitter(size = 0.1) + geom_boxplot(aes(fill = celltype_r2), alpha = 0.4, show.legend = F) + 
+#   theme_minimal() + theme(plot.title = element_text(hjust = 0.5),
+#                           axis.text.x = element_text(size = 8, colour = 'black')) + 
+#   ggtitle('Myeloid Cells') +
+#   Seurat::RotatedAxis() + xlab('') + ylab('Relative Frequency')
+# ggsave('figures/Abundance/mye.pdf', width = 8, height = 5)
+# 
+# meta_int |> 
+#   distinct(celltype_r2, sample, .keep_all = T) |> 
+#   select(freq_r2_comp, dataset, response, modality, int_cat, patient, time_point, celltype_r2) |> 
+#   filter(celltype_r2 %in% bplasma) |> 
+#   ggplot(aes(x = reorder(celltype_r2, freq_r2_comp, FUN = median, decreasing = T), y = freq_r2_comp)) + 
+#   geom_jitter(size = 0.1) + geom_boxplot(aes(fill = celltype_r2), alpha = 0.4, show.legend = F) + 
+#   theme_minimal() + theme(plot.title = element_text(hjust = 0.5),
+#                           axis.text.x = element_text(size = 8, colour = 'black')) + 
+#   ggtitle('B Lymphocytes') +
+#   Seurat::RotatedAxis() + xlab('') + ylab('Relative Frequency')
+# ggsave('figures/Abundance/bplasma.pdf', width = 8, height = 5)
+# 
+# meta_int |> 
+#   distinct(celltype_r2, sample, .keep_all = T) |> 
+#   select(freq_r2_comp, dataset, response, modality, int_cat, patient, time_point, celltype_r2) |> 
+#   filter(celltype_r2 %in% nonimmune) |> 
+#   ggplot(aes(x = reorder(celltype_r2, freq_r2_comp, FUN = median, decreasing = T), y = freq_r2_comp)) + 
+#   geom_jitter(size = 0.1) + geom_boxplot(aes(fill = celltype_r2), alpha = 0.4, show.legend = F) + 
+#   theme_minimal() + theme(plot.title = element_text(hjust = 0.5),
+#                           axis.text.x = element_text(size = 8, colour = 'black')) + 
+#   ggtitle('Non-immune') +
+#   Seurat::RotatedAxis() + xlab('') + ylab('Relative Frequency')
+# ggsave('figures/Abundance/non-immune.pdf', width = 5, height = 3.5)
 
 # Existance across dataset
-list_metadata <- qread('/bigdata/zlin/PanCancer_ICI/tables/meta_list.qs')
-meta_int <- read.csv('/bigdata/zlin/PanCancer_ICI/tables/meta_int.csv') 
-dist_fun <- function(list_metadata, cellstates){
+list_metadata <- qs_read('tables/meta_list.qs2')
+meta_int <- read.csv('tables/meta_all.csv') 
+list_metadata$RCC_Bi <- NULL
+meta_int <- meta_int |> filter(cohort != 'RCC_Bi')
+dist_fun <- function(list_metadata, cellstates, .time_point){
   list_dist <- lapply(list_metadata, function(metadata){
-    print(unique(metadata$dataset))
-    metadata <- metadata |> 
-      group_by(sample, celltype_r2) |> 
-      mutate(count_subset = n()) |>  
-      ungroup() 
+    print(unique(metadata$cohort))
+    # metadata <- metadata |> 
+    #   group_by(sample, celltype_r2) |> 
+    #   mutate(count_subset = n()) |>  
+    #   ungroup() 
+    metadata <- filter(metadata, time_point == .time_point)
     subtype_dist <- table(metadata$sample, metadata$celltype_r2)
     rowname <- rownames(subtype_dist)
     subtype_dist <- apply(subtype_dist, 2, function(x) as.numeric(x>=3)) 
     rownames(subtype_dist) <- rowname
     subtype_dist <- apply(subtype_dist, 2, sum) |> 
-      sapply(function(x){return(ifelse(x >= 2, 1, ifelse(length(unique(metadata$sample)) <= 4 & x >= 1, 1, 0)))}) |> 
+      sapply(function(x){return(ifelse(x >= 1, 1, ifelse(length(unique(metadata$sample)) <= 2 & x >= 1, 1, 0)))}) |> 
       data.frame() |> 
       rownames_to_column(var = 'subtype')
-    names(subtype_dist)[2] <- unique(metadata$dataset)
+    names(subtype_dist)[2] <- unique(metadata$cohort)
     return(subtype_dist)
   })
   df_dist <- Reduce(function(x, y) merge(x, y, by = "subtype", all = TRUE), list_dist) |> column_to_rownames(var = 'subtype')
   df_dist[is.na(df_dist)] <- 0
   df_dist <- df_dist[cellstates,]
-  df_dist <- t(df_dist) |> data.frame(check.names = F) |> rownames_to_column(var = 'dataset')
+  df_dist <- t(df_dist) |> data.frame(check.names = F) |> rownames_to_column(var = 'cohort')
   return(df_dist)
 }
 
-dist_t <- dist_fun(list_metadata = list_metadata, 
-                   cellstates = t)
+dist_df <- lapply(c('Pre','On'), function(timepoint){
+  dist_t <- dist_fun(list_metadata = list_metadata, 
+                     cellstates = t, .time_point = timepoint)
+  dist_nk <- dist_fun(list_metadata = list_metadata[c('SKCM_Becker', 'SKCM_Plozniak', 'BCC_Yost', 
+                                                      'BRCA_Bassez1', 'BRCA_Bassez2', 'TNBC_Zhang', 'TNBC_Shiao', 
+                                                      'HNSC_Franken', 'HNSC_vanderLeun', 'HNSC_Luoma', 
+                                                      'NSCLC_Yan', 
+                                                      'CRC_Li', 'CRC_Chen', 'PCa_Hawley','HCC_Guo')], 
+                      cellstates = nk, .time_point = timepoint)
+  
+  dist_bplasma <- dist_fun(list_metadata = list_metadata[c('SKCM_Becker', 'SKCM_Plozniak', 'BCC_Yost', 
+                                                           'BRCA_Bassez1', 'BRCA_Bassez2', 'TNBC_Zhang', 'TNBC_Shiao', 
+                                                           'HNSC_Franken', 'HNSC_vanderLeun', 'HNSC_Luoma', 
+                                                           'NSCLC_Yan', 
+                                                           'CRC_Li', 'CRC_Chen', 'PCa_Hawley','HCC_Guo')], 
+                           cellstates =  bplasma, .time_point = timepoint)
+  dist_mye <- dist_fun(list_metadata = list_metadata[c('SKCM_Becker', 'SKCM_Plozniak', 'BCC_Yost', 
+                                                       'BRCA_Bassez1', 'BRCA_Bassez2', 'TNBC_Zhang', 'TNBC_Shiao', 
+                                                       'HNSC_Franken', 'HNSC_vanderLeun', 'HNSC_Luoma', 
+                                                       'NSCLC_Yan', 
+                                                       'CRC_Li', 'CRC_Chen', 'PCa_Hawley','HCC_Guo')], 
+                       cellstates =  mye, .time_point = timepoint)
+  dist_nonimmune <- dist_fun(list_metadata = list_metadata[c('SKCM_Becker', 'SKCM_Plozniak', 'BCC_Yost', 
+                                                             'BRCA_Bassez1', 'BRCA_Bassez2', 'TNBC_Shiao', 
+                                                             'HNSC_Franken', 
+                                                             'NSCLC_Yan', 
+                                                             'CRC_Li', 'CRC_Chen', 'PCa_Hawley')], 
+                             cellstates =  nonimmune, .time_point = timepoint)
+  
+  df_dist <- Reduce(function(x, y) merge(x, y, by = "cohort", all = TRUE), list(dist_t, dist_nk, dist_bplasma, dist_mye, dist_nonimmune)) |> 
+    column_to_rownames(var = 'cohort') |> 
+    t() |> data.frame(check.names = F)
+  df_dist[is.na(df_dist)] <- 0
+  return(df_dist)
+})
 
-dist_nk <- dist_fun(list_metadata = list_metadata[c('SKCM_Becker', 'BRCA_Bassez1', 'BRCA_Bassez2', 'TNBC_Shiao', 'TNBC_Zhang', 'BCC_Yost', 'HNSC_Franken', 'HNSC_IMCISION', 'HNSC_Luoma', 'CRC_Li', 'CRC_Chen', 'PCa_Hawley')], 
-                    cellstates = nk)
+combined_dist <- (dist_df[[1]] + 2 * dist_df[[2]])
 
-dist_bplasma <- dist_fun(list_metadata = list_metadata[c('SKCM_Becker','BRCA_Bassez1','BRCA_Bassez2','TNBC_Shiao', 'TNBC_Zhang', 'BCC_Yost', 'HNSC_Franken', 'HNSC_IMCISION', 'HNSC_Luoma', 'CRC_Li', 'CRC_Chen', 'PCa_Hawley')], 
-                         cellstates =  bplasma)
+# Interpret the combined values
+result <- apply(combined_dist, c(1, 2), function(x) {
+  if (x == 0) "None"
+  else if (x == 1) "Pre-Tx only"
+  else if (x == 2) "On-Tx only"
+  else if (x == 3) "Both"
+})
 
-dist_mye <- dist_fun(list_metadata = list_metadata[c('SKCM_Becker','BRCA_Bassez1','BRCA_Bassez2','TNBC_Shiao', 'TNBC_Zhang', 'BCC_Yost', 'HNSC_Franken', 'HNSC_IMCISION', 'HNSC_Luoma', 'CRC_Li', 'CRC_Chen', 'PCa_Hawley')], 
-                     cellstates =  mye)
-
-dist_nonimmune <- dist_fun(list_metadata = list_metadata[c('SKCM_Becker','BRCA_Bassez1','BRCA_Bassez2', 'BCC_Yost', 'HNSC_Franken', 'CRC_Li', 'CRC_Chen', 'PCa_Hawley')], 
-                           cellstates =  nonimmune)
-
-df_dist <- Reduce(function(x, y) merge(x, y, by = "dataset", all = TRUE), list(dist_t, dist_nk, dist_bplasma, dist_mye, dist_nonimmune)) |> 
-  column_to_rownames(var = 'dataset') |> 
-  t() |> data.frame(check.names = F)
-df_dist[is.na(df_dist)] <- 0
-df_dist <- df_dist[, c('SKCM_Becker', 'BCC_Yost', 'SCC_Yost', 'BRCA_Bassez1', 'BRCA_Bassez2', 'TNBC_Shiao', 'TNBC_Zhang', 'HNSC_Franken', 'HNSC_IMCISION', 'HNSC_Luoma', 'CRC_Li', 'CRC_Chen', 'PCa_Hawley', 'NSCLC_Liu')]
+result <- result[,c("SKCM_this study", "SKCM_Plozniak",   "BCC_Yost", "SCC_Yost", 
+                    "BRCA_Bassez1", "BRCA_Bassez2", "TNBC_Zhang", "TNBC_Shiao", 
+                    "HNSC_Franken", "HNSC_vanderLeun", "HNSC_Luoma" , 
+                    "CRC_Li", "CRC_Chen", "NSCLC_Yan", "NSCLC_Liu", "PCa_Hawley",'HCC_Guo')]
 df_anno <- meta_int |> 
   distinct(celltype_r2, component) |> 
   mutate(component = case_when(component == 'T_NK' ~ 'T&NK',
                                component == 'Bplasma' ~ 'B&plasma',
                                .default = component)) |> 
   mutate(component = factor(component, levels = c('T&NK', 'B&plasma', 'Myeloids', 'Non-immune'))) 
-colors = structure(c(0,1), names = c("lightgray", "#1F78B4"))
-pdf('/bigdata/zlin/PanCancer_ICI/figures/dist_existing.pdf', height = 9, width = 4)
-Heatmap(df_dist, 
+
+pdf('figures/dist_existing.pdf', height = 9, width = 4.5)
+Heatmap(result, 
         show_column_names = T, show_row_names = T,
-        cluster_rows = F, cluster_columns = F, col = c("lightgray", "#1F78B4"),
-        heatmap_legend_param = list(labels = c("Absent", "Existing"), title = ""),
+        cluster_rows = F, cluster_columns = F, 
+        col = c("#1F78B4","lightgray", "#c5484f",'#308240'),
+        heatmap_legend_param = list(
+          at = c("Both", "None", "Pre-Tx only", "On-Tx only"),
+          labels = c("Both", "None", "Pre-Tx only", "On-Tx only"),
+          title = "Existing"
+        ),
         column_names_gp = gpar(fontsize = 6),
         column_names_rot = 45,
         row_names_gp = gpar(fontsize = 6),
         row_title_gp = gpar(fontsize = 8, fontface = 'bold'),
         rect_gp = gpar(col = "white", lwd = 1),
-        # top_annotation = col_ha,
-        # left_annotation = row_ha,
-        width = ncol(df_dist)*unit(3, "mm"), 
-        height = nrow(df_dist)*unit(2, "mm"),
-        row_split = df_anno$component[match(rownames(df_dist), df_anno$celltype_r2)])
+        width = ncol(result)*unit(3, "mm"), 
+        height = nrow(result)*unit(2, "mm"),
+        row_split = df_anno$component[match(rownames(result), df_anno$celltype_r2)])
 dev.off()
 
+# R(o/e)
+library(Startrac)
+library(ComplexHeatmap)
+library(RColorBrewer)
+library(circlize)
+metadata <- read.csv('tables/meta_all.csv')
+# unwanted_celltypes <- c('Melanocytes(CNA-)', 'Melanocytes(CNA+)', 'Epithelial(CNA+)', 'Epithelial(CNA-)', 'Malignant(CNA+)', 
+#                         'Cycling T/NK', "GCB-cycling", "PC-cycling", 'Cycling_myeloids')
+unwanted_celltypes <- c('Melanocytes(CNA-)', 'Melanocytes(CNA+)', 'Epithelial(CNA+)', 'Epithelial(CNA-)', 'Malignant(CNA+)')
+col_fun <- colorRamp2(c(0, 1, 2), colors = c("white", "#ffe7d4", "#FE5B14"))
+metadata <- metadata |> 
+  mutate(subtype = case_when(subtype %in% c('BCC','SCC') ~ 'BCC&SCC',
+                             TRUE ~ subtype))
+subtypes <- unique(metadata$subtype)
+subtypes <- subtypes[-9]
+ht_list_t <- lapply(subtypes, function(.subtype){
+  print(.subtype)
+  roie <- metadata |> 
+    mutate(time_point = factor(time_point, levels = c('Pre','On'))) |> 
+    filter(celltype_r2 %in% c(t,nk),
+           subtype == .subtype) |> 
+    calTissueDist(byPatient = F,
+                  colname.cluster = "celltype_r2",
+                  colname.patient = "patient",
+                  colname.tissue = "time_point",
+                  method = "chisq", 
+                  min.rowSum = 10) |> 
+    as.matrix()
+  missing_rows <- setdiff(c(t,nk), rownames(roie))
+  if (length(missing_rows) > 0) {
+    extra_rows <- matrix(NA, nrow = length(missing_rows), ncol = ncol(roie))
+    rownames(extra_rows) <- missing_rows
+    roie <- rbind(roie, extra_rows)
+  }
+  
+  # Reorder rows to match desired_row_order
+  roie <- roie[c(t,nk), , drop = FALSE]
+  print(dim(roie))
+  ht <- Heatmap(roie, 
+          column_title = .subtype,
+          # column_title_rot = 45,
+          column_title_gp = gpar(fontsize = 10),
+          column_title_rot = 0,
+          column_names_rot = 30,
+          show_heatmap_legend = T, 
+          cluster_rows = F, 
+          cluster_columns = F,
+          row_names_side = 'right', 
+          show_column_names = T,
+          show_row_names = T,
+          col = col_fun,
+          row_names_gp = gpar(fontsize = 8),
+          column_names_gp = gpar(fontsize = 8),
+          na_col = "grey",
+          heatmap_legend_param = list(
+            title = "Ro/e",
+            at =  seq(0, 2, by = 0.5),
+            labels =  seq(0, 2, by = 0.5),
+            legend_gp = gpar(fill = col_fun(2))
+          ),
+          cell_fun = function(j, i, x, y, width, height, fill) {
+            value <- roie[i, j]
+            text_label <- ifelse(is.na(value), "",  # No text for NA values
+                                 ifelse(value > 2, "+++",
+                                        ifelse(value >= 1.5, "++",
+                                               ifelse(value >= 0.8, "+",
+                                                      ifelse(value > 0, "+/-", "-")))))
+            grid.text(text_label, x, y, gp = gpar(fontsize = 8))
+          }
+  )
+  return(ht)
+})
+ht_list <- NULL
+for (i in 1:(length(ht_list_t)-1)) {
+  ht_list = ht_list + ht_list_t[[i]]
+}
+
+# RCC_Bi
+.subtype <- 'RCC'
+roie <- metadata |>
+  mutate(time_point = factor(time_point, levels = c('NoICI','ICI_exposed'))) |> 
+  filter(celltype_r2 %in% c(t,nk),
+         subtype == .subtype) |> 
+  calTissueDist(byPatient = F,
+                colname.cluster = "celltype_r2",
+                colname.patient = "patient",
+                colname.tissue = "time_point",
+                method = "chisq", 
+                min.rowSum = 10) |> 
+  as.matrix()
+missing_rows <- setdiff(c(t,nk), rownames(roie))
+if (length(missing_rows) > 0) {
+  extra_rows <- matrix(NA, nrow = length(missing_rows), ncol = ncol(roie))
+  rownames(extra_rows) <- missing_rows
+  roie <- rbind(roie, extra_rows)
+}
+
+# Reorder rows to match desired_row_order
+roie <- roie[c(t,nk), , drop = FALSE]
+print(dim(roie))
+ht <- Heatmap(roie, 
+              column_title = .subtype,
+              # column_title_rot = 45,
+              column_title_gp = gpar(fontsize = 10),
+              column_title_rot = 0,
+              column_names_rot = 30,
+              show_heatmap_legend = T, 
+              cluster_rows = F, 
+              cluster_columns = F,
+              row_names_side = 'right', 
+              show_column_names = T,
+              show_row_names = T,
+              col = col_fun,
+              row_names_gp = gpar(fontsize = 8),
+              column_names_gp = gpar(fontsize = 8),
+              na_col = "grey",
+              heatmap_legend_param = list(
+                title = "Ro/e",
+                at =  seq(0, 2, by = 0.5),
+                labels =  seq(0, 2, by = 0.5),
+                legend_gp = gpar(fill = col_fun(2))
+              ),
+              cell_fun = function(j, i, x, y, width, height, fill) {
+                value <- roie[i, j]
+                text_label <- ifelse(is.na(value), "",  # No text for NA values
+                                     ifelse(value > 2, "+++",
+                                            ifelse(value >= 1.5, "++",
+                                                   ifelse(value >= 0.8, "+",
+                                                          ifelse(value > 0, "+/-", "-")))))
+                grid.text(text_label, x, y, gp = gpar(fontsize = 8))
+              }
+)
+ht_list <- ht_list+ht
+pdf('figures/Roie/t.pdf', height = 5, width = 9)
+draw(ht_list, ht_gap = unit(0.4, "cm"))
+dev.off()
+
+# myeloids
+subtypes <- unique(metadata$subtype)
+subtypes <- subtypes[-9]
+ht_list_t <- lapply(subtypes, function(.subtype){
+  print(.subtype)
+  roie <- metadata |> 
+    mutate(time_point = factor(time_point, levels = c('Pre','On'))) |> 
+    filter(celltype_r2 %in% mye,
+           subtype == .subtype) |> 
+    calTissueDist(byPatient = F,
+                  colname.cluster = "celltype_r2",
+                  colname.patient = "patient",
+                  colname.tissue = "time_point",
+                  method = "chisq", 
+                  min.rowSum = 10) |> 
+    as.matrix()
+  missing_rows <- setdiff(mye, rownames(roie))
+  if (length(missing_rows) > 0) {
+    extra_rows <- matrix(NA, nrow = length(missing_rows), ncol = ncol(roie))
+    rownames(extra_rows) <- missing_rows
+    roie <- rbind(roie, extra_rows)
+  }
+  
+  # Reorder rows to match desired_row_order
+  roie <- roie[mye, , drop = FALSE]
+  print(dim(roie))
+  ht <- Heatmap(roie, 
+                column_title = .subtype,
+                # column_title_rot = 45,
+                column_title_gp = gpar(fontsize = 10),
+                column_title_rot = 0,
+                column_names_rot = 30,
+                show_heatmap_legend = T, 
+                cluster_rows = F, 
+                cluster_columns = F,
+                row_names_side = 'right', 
+                show_column_names = T,
+                show_row_names = T,
+                col = col_fun,
+                row_names_gp = gpar(fontsize = 8),
+                column_names_gp = gpar(fontsize = 8),
+                na_col = "grey",
+                heatmap_legend_param = list(
+                  title = "Ro/e",
+                  at =  seq(0, 2, by = 0.5),
+                  labels =  seq(0, 2, by = 0.5),
+                  legend_gp = gpar(fill = col_fun(2))
+                ),
+                cell_fun = function(j, i, x, y, width, height, fill) {
+                  value <- roie[i, j]
+                  text_label <- ifelse(is.na(value), "",  # No text for NA values
+                                       ifelse(value > 2, "+++",
+                                              ifelse(value >= 1.5, "++",
+                                                     ifelse(value >= 0.8, "+",
+                                                            ifelse(value > 0, "+/-", "-")))))
+                  grid.text(text_label, x, y, gp = gpar(fontsize = 8))
+                }
+  )
+  return(ht)
+})
+ht_list <- NULL
+for (i in 1:(length(ht_list_t)-1)) {
+  ht_list = ht_list + ht_list_t[[i]]
+}
+
+# RCC_Bi
+.subtype <- 'RCC'
+roie <- metadata |>
+  mutate(time_point = factor(time_point, levels = c('NoICI','ICI_exposed'))) |> 
+  filter(celltype_r2 %in% mye,
+         subtype == .subtype) |> 
+  calTissueDist(byPatient = F,
+                colname.cluster = "celltype_r2",
+                colname.patient = "patient",
+                colname.tissue = "time_point",
+                method = "chisq", 
+                min.rowSum = 10) |> 
+  as.matrix()
+missing_rows <- setdiff(mye, rownames(roie))
+if (length(missing_rows) > 0) {
+  extra_rows <- matrix(NA, nrow = length(missing_rows), ncol = ncol(roie))
+  rownames(extra_rows) <- missing_rows
+  roie <- rbind(roie, extra_rows)
+}
+
+# Reorder rows to match desired_row_order
+roie <- roie[mye, , drop = FALSE]
+print(dim(roie))
+ht <- Heatmap(roie, 
+              column_title = .subtype,
+              # column_title_rot = 45,
+              column_title_gp = gpar(fontsize = 10),
+              column_title_rot = 0,
+              column_names_rot = 30,
+              show_heatmap_legend = T, 
+              cluster_rows = F, 
+              cluster_columns = F,
+              row_names_side = 'right', 
+              show_column_names = T,
+              show_row_names = T,
+              col = col_fun,
+              row_names_gp = gpar(fontsize = 8),
+              column_names_gp = gpar(fontsize = 8),
+              na_col = "grey",
+              heatmap_legend_param = list(
+                title = "Ro/e",
+                at =  seq(0, 2, by = 0.5),
+                labels =  seq(0, 2, by = 0.5),
+                legend_gp = gpar(fill = col_fun(2))
+              ),
+              cell_fun = function(j, i, x, y, width, height, fill) {
+                value <- roie[i, j]
+                text_label <- ifelse(is.na(value), "",  # No text for NA values
+                                     ifelse(value > 2, "+++",
+                                            ifelse(value >= 1.5, "++",
+                                                   ifelse(value >= 0.8, "+",
+                                                          ifelse(value > 0, "+/-", "-")))))
+                grid.text(text_label, x, y, gp = gpar(fontsize = 8))
+              }
+)
+ht_list <- ht_list+ht
+pdf('figures/Roie/myeloids.pdf', height = 5, width = 9)
+draw(ht_list, ht_gap = unit(0.4, "cm"))
+dev.off()
+
+
+
+
+
+
+
+
+
+
+
+roie <- metadata |> 
+  mutate(time_point = factor(time_point, levels = c('Pre','On'))) |> 
+  filter(!celltype_r2 %in% unwanted_celltypes,
+         subtype == 'SKCM') |> 
+  calTissueDist(byPatient = F,
+                colname.cluster = "celltype_r2",
+                colname.patient = "patient",
+                colname.tissue = "time_point",
+                method = "chisq", 
+                min.rowSum = 0) |> 
+  as.matrix() |> t() |> 
+  apply(1, function(x) pmin(x, 2))
+Heatmap(roie, 
+        column_title = 'SKCM',
+        column_title_rot = 45,
+        show_heatmap_legend = T, 
+        cluster_rows = T, 
+        cluster_columns = F,
+        row_names_side = 'right', 
+        show_column_names = T,
+        show_row_names = T,
+        col = col_fun,
+        row_names_gp = gpar(fontsize = 8),
+        column_names_gp = gpar(fontsize = 10),
+        heatmap_legend_param = list(
+          title = "R(o/e)",
+          at =  seq(0, 2, by = 0.5),
+          labels =  seq(0, 2, by = 0.5),
+          legend_gp = gpar(fill = col_fun(2))
+        ),
+        cell_fun = function(j, i, x, y, width, height, fill) {
+          grid.text(sprintf("%.2f", roie[i, j]), x, y, gp = gpar(fontsize = 8))
+        }
+)
+
+# Heatmap
+library(Startrac)
+library(ComplexHeatmap)
+library(RColorBrewer)
+library(circlize)
+meta_int <- read.csv('tables/meta_all.csv') 
+unwanted_celltypes <- c('Melanocytes(CNA-)', 'Melanocytes(CNA+)', 'Epithelial(CNA+)', 'Epithelial(CNA-)', 'Malignant(CNA+)')
+# logit_transform <- function(x, epsilon = 1e-6) {
+#   x <- ifelse(x == 0, epsilon, x)  # Replace 0 with a small value
+#   x <- ifelse(x == 1, 1 - epsilon, x)  # Replace 1 with (1 - small value)
+#   log(x / (1 - x))  # Logit transformation
+# }
+
+meta_df <- meta_int |> 
+  distinct(celltype_r2, sample, .keep_all = TRUE) |> 
+  filter(!celltype_r2 %in% unwanted_celltypes) 
+df_sample <- meta_df |> distinct(sample, .keep_all = T)
+meta_matrix <- meta_df |> 
+  select(sample, celltype_r2, freq_r2_comp) |> 
+  pivot_wider(names_from = celltype_r2, values_from = freq_r2_comp, values_fill = list(freq_r2_comp = 0)) |> 
+  column_to_rownames(var = 'sample') |> 
+  as.matrix() |> t()
+row_names <- rownames(meta_matrix)
+# Apply logit transformation while keeping NA values
+meta_matrix <- apply(meta_matrix, 2, function(col) scale(log(col + 1e-6)))
+
+# Generate the heatmap
+col_ha <- HeatmapAnnotation(dataset = df_sample$cohort, time_point = df_sample$time_point, response = df_sample$response)
+celltype_class <- c(
+  setNames(rep("T/NK", length(c(t,nk))), c(t,nk)),
+  setNames(rep("B/plasma", length(bplasma)), bplasma),
+  setNames(rep("Myeloid", length(mye)), mye),
+  setNames(rep("Non-immune", length(nonimmune)), nonimmune)
+)
+# Match row names to their categories
+celltype_annotation <- celltype_class[row_names] # your_data_matrix is the data for heatmap
+
+# Define colors for annotations
+category_colors <- c("T/NK" = "#E41A1C", 
+                     "B/plasma" = "#377EB8", 
+                     "Myeloid" = "#4DAF4A", 
+                     "Non-immune" = "#984EA3")
+
+# Create row annotation
+row_ha <- rowAnnotation(
+  Classification = celltype_annotation, 
+  col = list(Classification = category_colors)
+)
+Heatmap(meta_matrix, show_column_names = F, top_annotation = col_ha, left_annotation = row_ha)
+  
+
+
+
+
+
+
+
+
+
+
 # Heatmap for change
-meta_int <- read.csv('/bigdata/zlin/PanCancer_ICI/tables/meta_int.csv') 
-pt_df <- read.csv('/bigdata/zlin/PanCancer_ICI/tables/meta_patient.csv')
+meta_int <- read.csv('tables/meta_int.csv') 
+pt_df <- read.csv('tables/meta_patient.csv')
 # freq_filt <- meta_int |> 
 #   select(patient, time_point, celltype_r2, interval, cancertype, response, res_metric, treatment, prior, modality, dataset, component, count_r2) |> 
 #   distinct(patient, time_point, celltype_r2, .keep_all = T) |> 
@@ -169,7 +572,7 @@ freq_wide <- meta_int |>
   mutate(change = log2((On + 0.01)/(Pre + 0.01)), diff = (On - Pre))
 freq_wide |> 
   select(patient, celltype_r2, interval, cancertype, response, res_metric, treatment, prior, dataset, Pre, On, change) |> 
-  write.csv(file = '/bigdata/zlin/PanCancer_ICI/data/df_patient_celltype.csv', row.names = F)
+  write.csv(file = 'data/df_patient_celltype.csv', row.names = F)
 mat_change <- freq_wide |> 
   select(patient, diff, celltype_r2) |> 
   pivot_wider(values_from = diff, names_from = patient, values_fill = 0) |> 
@@ -241,7 +644,7 @@ df_anno <- meta_int |>
                                .default = component)) |> 
   mutate(component = factor(component, levels = c('T&NK', 'B&plasma', 'Myeloids', 'Non-immune')))  
   
-pdf('/bigdata/zlin/PanCancer_ICI/figures/Change/ht_dynamics.pdf', height = 10, width = 9)
+pdf('figures/Change/ht_dynamics.pdf', height = 10, width = 9)
 Heatmap(t(scale(t(mat_change))), na_col = 'lightgray', name = 'ΔRF (z-score)',
         row_title_gp = gpar(fontsize = 8, fontface = 'bold'),
         show_column_names = F, show_row_names = T,
@@ -272,7 +675,7 @@ dev.off()
 #            grepl('SCC|NSCLC', colnames(mat_change_mean))] <- NA
 # mat_change_mean[which(rownames(mat_change_mean) %in% 'EC_lymphatic'):which(rownames(mat_change_mean) %in% 'Myofibroblast'),
 #            grepl('TNBC_Shiao|TNBC_Zhang|HNSC_IMCISION|HNSC_Luoma', colnames(mat_change_mean))] <- NA
-# pdf('/bigdata/zlin/PanCancer_ICI/figures/Change/ht_dynamics_mean.pdf', height = 8, width = 4)
+# pdf('figures/Change/ht_dynamics_mean.pdf', height = 8, width = 4)
 # Heatmap(t(scale(t(mat_change_mean))), na_col = 'lightgray', name = 'Mean ΔRF \n(z-score)',
 #         row_title_gp = gpar(fontsize = 8, fontface = 'bold'),
 #         show_column_names = T, show_row_names = T,
@@ -304,7 +707,7 @@ mat_change_median[which(rownames(mat_change_median) %in% 'NK_CD56loCD16hi'):whic
                 grepl('SCC|NSCLC', colnames(mat_change_median))] <- NA
 mat_change_median[which(rownames(mat_change_median) %in% 'Endo_lymphatic'):which(rownames(mat_change_median) %in% 'Myofibroblast'),
                 grepl('TNBC_Shiao|TNBC_Zhang|HNSC_IMCISION|HNSC_Luoma', colnames(mat_change_median))] <- NA
-pdf('/bigdata/zlin/PanCancer_ICI/figures/Change/ht_dynamics_median.pdf', height = 9, width = 4.5)
+pdf('figures/Change/ht_dynamics_median.pdf', height = 9, width = 4.5)
 Heatmap(t(scale(t(mat_change_median))), na_col = 'lightgray', name = 'Median ΔRF \n(z-score)',
         row_title_gp = gpar(fontsize = 8, fontface = 'bold'),
         show_column_names = T, show_row_names = T,
@@ -325,7 +728,7 @@ Heatmap(t(scale(t(mat_change_median))), na_col = 'lightgray', name = 'Median ΔR
 dev.off()
 
 # Pre Post median
-pdf('/bigdata/zlin/PanCancer_ICI/figures/Change/ht_median.pdf', height = 11, width = 6)
+pdf('figures/Change/ht_median.pdf', height = 11, width = 6)
 mat_pre_median <- freq_wide |> 
   select(dataset, Pre, celltype_r2) |> 
   group_by(dataset,celltype_r2) |> 
@@ -385,8 +788,8 @@ dev.off()
 
 
 # Correlation of dynamic changes (co-regulatiion)
-meta_int <- read.csv('/bigdata/zlin/PanCancer_ICI/tables/meta_int.csv')
-pt_df <- read.csv('/bigdata/zlin/PanCancer_ICI/tables/meta_patient.csv')
+meta_int <- read.csv('tables/meta_int.csv')
+pt_df <- read.csv('tables/meta_patient.csv')
 head(meta_int)
 range(meta_int$freq_r2_comp)
 # Immune cells
@@ -424,7 +827,7 @@ mat_change <- freq_wide |>
   column_to_rownames(var = 'celltype_r2')
 M <- cor(t(mat_change))
 testRes <- cor.mtest(t(mat_change), conf.level = 0.95)
-pdf('/bigdata/zlin/PanCancer_ICI/figures/Co-regulating/freq_immune.pdf', height = 10, width = 9)
+pdf('figures/Co-regulating/freq_immune.pdf', height = 10, width = 9)
 cols <- colorRampPalette(c("#336699", "white", "#CC0000")) 
 # corrplot(M, p.mat = testRes$p, col = cols(100), tl.srt=45,
 #          tl.cex = 0.5, pch.cex = 0.6, tl.col = 'black', order = 'hclust', hclust.method = "ward.D2",
@@ -494,7 +897,7 @@ graph_cors |>
   theme_blank() + 
   theme(legend.position="bottom") +
   ggtitle('(FDR<0.05 & rho>0.3)')
-ggsave('/bigdata/zlin/PanCancer_ICI/figures/Co-regulating/graph_immune_pos.pdf', height = 8, width = 9)
+ggsave('figures/Co-regulating/graph_immune_pos.pdf', height = 8, width = 9)
 
 # Convert correlations stronger than some value to an undirected graph object
 graph_cors <- df |> 
@@ -540,7 +943,7 @@ graph_cors |>
   guides(alpha = "none") +
   theme_blank() + 
   ggtitle('Immune Cells \n(FDR<0.05 & rho<-0.3)')
-ggsave('/bigdata/zlin/PanCancer_ICI/figures/Co-regulating/graph_immune_neg.pdf', height = 6, width = 8)
+ggsave('figures/Co-regulating/graph_immune_neg.pdf', height = 6, width = 8)
 
 # # adding coordiantes
 # g <- igraph::simplify(graph_cors)
@@ -571,7 +974,7 @@ ggsave('/bigdata/zlin/PanCancer_ICI/figures/Co-regulating/graph_immune_neg.pdf',
 #   theme(legend.position = "bottom",
 #         legend.text = element_text(size=10)) +
 #   ggtitle('Immune Cells\np<0.001, rho<-0.3'); p_neg
-# ggsave('/bigdata/zlin/PanCancer_ICI/figures/Co-regulating/graph_immune_neg.pdf', height = 8, width = 14)
+# ggsave('figures/Co-regulating/graph_immune_neg.pdf', height = 8, width = 14)
 # p_pos + p_neg + plot_layout(guides = "collect") & theme(legend.position = 'bottom')
 
 df <- freq_wide |> 
@@ -581,7 +984,7 @@ df <- freq_wide |>
   pivot_wider(values_from = 'diff', names_from = celltype_r2, values_fill = 0) |> 
   column_to_rownames(var = 'patient') 
 
-pdf('/bigdata/zlin/PanCancer_ICI/figures/Co-regulating/ht_isg.pdf', height = 4, width = 14)
+pdf('figures/Co-regulating/ht_isg.pdf', height = 4, width = 14)
 a <- apply(df, 1, scales::rescale, to = c(0,1))
 a <- a[c('B_ISG15', 'CD4_Th_ISG15', 'CD4_Treg_ISG15', 'CD8_Tex_ISG15', 'cDC2_ISG15', 'Macro_ISG15','cDC2_CXCL9'),]
 score_pos <- apply(a, 2, sum)
@@ -644,7 +1047,7 @@ pt_df |>
   ggpubr::stat_compare_means(method = 't.test') + 
   ylab('Overall Dynamics \n(ISG15+)') + xlab('') + ggtitle('T Cell Expansion') +
   theme_bw()
-ggsave('/bigdata/zlin/PanCancer_ICI/figures/Co-regulating/expansion_isg.pdf', height = 3.5, width = 5)
+ggsave('figures/Co-regulating/expansion_isg.pdf', height = 3.5, width = 5)
 
 # pt_df |>
 #   filter(res_metric %in% c('T-cell expansion','T-cell expansion+MRI')) |> 
@@ -661,9 +1064,9 @@ ggsave('/bigdata/zlin/PanCancer_ICI/figures/Co-regulating/expansion_isg.pdf', he
 #   ggpubr::stat_compare_means(method = 't.test') + 
 #   ylab('Overall Dynamics \n(ISG15+)') + xlab('') + ggtitle('T Cell Expansion') +
 #   theme_bw()
-# ggsave('/bigdata/zlin/PanCancer_ICI/figures/Co-regulating/expansion_isg_cohort.pdf', height = 3.5, width = 8)
+# ggsave('figures/Co-regulating/expansion_isg_cohort.pdf', height = 3.5, width = 8)
 
-pdf('/bigdata/zlin/PanCancer_ICI/figures/Co-regulating/ht_mac_naive_plasmsa.pdf', height = 5, width = 14)
+pdf('figures/Co-regulating/ht_mac_naive_plasmsa.pdf', height = 5, width = 14)
 a <- apply(df, 1, scales::rescale, to = c(0,1)) 
 a <- a[c('B_Naive','CD4_Naive', 'CD8_Naive', 'CD4_Tm_AREG','CD4_Tm_CREM','B_Memory', 'B_AtM','NK_CD56loCD16hi', 'CD8_Temra_CX3CR1', 'CD4_Temra_CX3CR1','CD4_Treg_TNFRSF9', 'Macro_C1QC', 'Plasma_cell'),]
 score_pos <- apply(a[c('B_Naive','CD4_Naive', 'CD8_Naive', 'CD4_Tm_AREG','CD4_Tm_CREM','B_Memory', 'B_AtM','NK_CD56loCD16hi', 'CD8_Temra_CX3CR1', 'CD4_Temra_CX3CR1'),], 2, sum)
@@ -805,7 +1208,7 @@ col_ha = HeatmapAnnotation(
              Response = structure(names = c('RE','NR'), pal_startrek()(length(unique(pt_df$response)))),
              `Response Metrics` = structure(names = sort(unique(pt_df$res_metric)), met.brewer("Juarez", length(unique(pt_df$res_metric)))))
 )
-pdf('/bigdata/zlin/PanCancer_ICI/figures/Co-regulating/ht_mac_naive_plasmsa_caf.pdf', height = 7, width = 12)
+pdf('figures/Co-regulating/ht_mac_naive_plasmsa_caf.pdf', height = 7, width = 12)
 Heatmap(a, cluster_columns = F, cluster_rows = F, 
         show_column_names = F, show_row_names = T, name = 'Z-score', 
         top_annotation = col_ha, 
@@ -829,7 +1232,7 @@ Heatmap(a, cluster_columns = T, cluster_rows = T,
         height = nrow(a)*unit(2.5, "mm"), col = rev(colorRampPalette(brewer.pal(6,'RdBu'))(100)))
 # 
 # # modality
-# pdf('/bigdata/zlin/PanCancer_ICI/figures/Co-regulating/freq_immune_modality.pdf', height = 10, width = 18)
+# pdf('figures/Co-regulating/freq_immune_modality.pdf', height = 10, width = 18)
 # par(mfrow=c(1,2))
 # cols <- colorRampPalette(c("#336699", "white", "#CC0000")) 
 # mat_change <- freq_wide |> 
@@ -861,7 +1264,7 @@ Heatmap(a, cluster_columns = T, cluster_rows = T,
 # dev.off()
 # 
 # # response
-# pdf('/bigdata/zlin/PanCancer_ICI/figures/Co-regulating/freq_immune_response.pdf', height = 10, width = 18)
+# pdf('figures/Co-regulating/freq_immune_response.pdf', height = 10, width = 18)
 # par(mfrow=c(1,2))
 # cols <- colorRampPalette(c("#336699", "white", "#CC0000")) 
 # mat_change <- freq_wide |> 
@@ -901,7 +1304,7 @@ mat_change <- freq_wide |>
   column_to_rownames(var = 'celltype_r2') 
 M <- cor(t(mat_change))
 testRes <- cor.mtest(t(mat_change), conf.level = 0.95)
-pdf('/bigdata/zlin/PanCancer_ICI/figures/Co-regulating/freq_TME.pdf', height = 10, width = 10)
+pdf('figures/Co-regulating/freq_TME.pdf', height = 10, width = 10)
 cols <- colorRampPalette(c("#336699", "white", "#CC0000")) 
 corrplot(M, p.mat = testRes$p, method = 'square', col = cols(100), tl.srt = 45, 
          tl.cex = 0.5, pch.cex = 0.6, tl.col = 'black', order = 'hclust', hclust.method = "ward.D2", mar = c(0,0,1,0),
@@ -960,7 +1363,7 @@ graph_cors |>
   guides(alpha = "none") +
   theme_blank() + 
   ggtitle('TME \n(FDR<0.05 & rho>0.3)')
-ggsave('/bigdata/zlin/PanCancer_ICI/figures/Co-regulating/graph_TME_pos.pdf', height = 8, width = 9)
+ggsave('figures/Co-regulating/graph_TME_pos.pdf', height = 8, width = 9)
 
 graph_cors <- df |> 
   filter(FDR<0.05, r< -0.3) |> 
@@ -1003,7 +1406,7 @@ graph_cors |>
   guides(alpha = "none") +
   theme_blank() + 
   ggtitle('TME \n(FDR<0.05, rho< -0.3)')
-ggsave('/bigdata/zlin/PanCancer_ICI/figures/Co-regulating/graph_TME_neg.pdf', height = 8, width = 9)
+ggsave('figures/Co-regulating/graph_TME_neg.pdf', height = 8, width = 9)
 
 freq_wide |> 
   filter(dataset %in% c('SKCM_Becker', 'BRCA_Bassez1', 'BRCA_Bassez2', 'BCC/SCC_Yost', 'BCC/SCC_Yost', 'PCa_Hawley', 'HNSC_Franken'), 
@@ -1021,7 +1424,7 @@ freq_wide |>
   geom_smooth( method = lm) + 
   ggpubr::stat_cor() + 
   theme_minimal()
-ggsave('/bigdata/zlin/PanCancer_ICI/figures/Co-regulating/scatter_treg_caf.pdf', height = 4, width = 5)
+ggsave('figures/Co-regulating/scatter_treg_caf.pdf', height = 4, width = 5)
 
 freq_wide |> 
   filter(dataset %in% c('SKCM_Becker', 'BRCA_Bassez1', 'BRCA_Bassez2', 'BCC/SCC_Yost', 'BCC/SCC_Yost', 'PCa_Hawley', 'HNSC_Franken', 'CRC_Li', 'CRC_Chen'), 
@@ -1039,7 +1442,7 @@ freq_wide |>
   geom_smooth( method = lm) + 
   ggpubr::stat_cor() + 
   theme_minimal() 
-ggsave('/bigdata/zlin/PanCancer_ICI/figures/Co-regulating/scatter_caf_treg.pdf', height = 4, width = 5)
+ggsave('figures/Co-regulating/scatter_caf_treg.pdf', height = 4, width = 5)
 
 # Pre vs diff
 list_res <- lapply(unique(freq_wide$celltype_r2), function(subtype){

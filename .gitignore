@@ -2,9 +2,10 @@
 .Rhistory
 .RData
 .Ruserdata
+.PanCancer_ICI.Rproj
 data/
 figures/
 tables/
-scripts/Preprocessing/
+scripts/
 output.log
 run_rscript.sh

@@ -1,5 +1,5 @@
 pkgs <- c('qs2', 'tidyr', 'dplyr', 'stringr', 'tibble', 'ggplot2',
-          'GSVA', 'pROC', 'survival', 'ranger', 'xgboost',
+          'GSVA', 'pROC', 'survival', 'ranger',
           'foreach', 'doParallel', 'metafor', 'scales', 'patchwork')
 invisible(lapply(pkgs, function(x) {
   require(package = x, character.only = TRUE, quietly = TRUE, warn.conflicts = FALSE)
